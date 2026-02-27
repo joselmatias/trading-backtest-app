@@ -204,6 +204,30 @@ def plot_wins_losses_by_day(df_analysis: pd.DataFrame) -> go.Figure:
     return fig
 
 
+def plot_monthly_heatmap(df_monthly: pd.DataFrame) -> go.Figure:
+    """Heatmap of monthly P/L (rows=year, cols=month)."""
+    data = df_monthly.drop(columns=["Total"], errors="ignore")
+    z    = data.values.tolist()
+    text = [[f"${v:,.0f}" for v in row] for row in z]
+
+    fig = go.Figure(go.Heatmap(
+        x=data.columns.tolist(),
+        y=[str(y) for y in data.index.tolist()],
+        z=z,
+        text=text,
+        texttemplate="%{text}",
+        zmid=0,
+        colorscale=[[0, COLOR_RED], [0.5, "#1a1a2e"], [1, COLOR_GREEN]],
+        hovertemplate="<b>%{y} — %{x}</b><br>P/L: $%{z:,.2f}<extra></extra>",
+    ))
+    fig.update_layout(
+        title="Monthly Performance ($)",
+        template="plotly_dark",
+        margin=dict(t=50, b=40),
+    )
+    return fig
+
+
 def plot_trade_duration(durations: pd.Series) -> go.Figure:
     """Histogram of trade durations in minutes with average line."""
     avg = durations.mean()

@@ -11,9 +11,9 @@ from utils.data_loader import DATASETS, calculate_indicators, load_csv
 from utils.charts import (
     plot_drawdown_abs, plot_drawdown_pct, plot_equity_curve,
     plot_pnl_by_weekday, plot_pnl_by_hour, plot_long_vs_short,
-    plot_wins_losses_by_day, plot_trade_duration,
+    plot_wins_losses_by_day, plot_trade_duration, plot_monthly_heatmap,
 )
-from utils.metrics import calculate_metrics
+from utils.metrics import calculate_metrics, calculate_advanced_metrics, monthly_performance
 from utils.strategy import run_backtest
 from utils.analytics import (
     pnl_by_weekday, pnl_by_hour, long_vs_short,
@@ -180,3 +180,87 @@ st.plotly_chart(
     plot_trade_duration(trade_duration_minutes(df_trades)),
     use_container_width=True, config={"displayModeBar": True},
 )
+
+st.divider()
+
+# ── Performance Report ────────────────────────────────────────────────────────
+st.subheader("📋 Performance Report")
+adv = calculate_advanced_metrics(df_trades)
+mp  = monthly_performance(df_trades)
+
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Métricas", "📈 Stats", "🔢 Trades", "📅 Monthly P/L"])
+
+with tab1:
+    c = st.columns(5)
+    c[0].metric("Total Profit",     f"${adv['total_profit']:,.2f}")
+    c[1].metric("# of Trades",      adv['n_trades'])
+    c[2].metric("Sharpe Ratio",     f"{adv['sharpe_ratio']:.2f}")
+    c[3].metric("Profit Factor",    f"{adv['profit_factor']:.2f}")
+    c[4].metric("Return/DD Ratio",  f"{adv['return_dd_ratio']:.2f}")
+    c = st.columns(5)
+    c[0].metric("Winning %",        f"{adv['winning_pct']:.1f}%")
+    c[1].metric("Profit in Pips",   f"{adv['profit_in_pips']:,.0f}")
+    c[2].metric("Drawdown $",       f"-${adv['max_dd_abs']:,.2f}")
+    c[3].metric("Drawdown %",       f"-{adv['max_dd_pct']:.2f}%")
+    c[4].metric("Daily Avg Profit", f"${adv['daily_avg_profit']:.2f}")
+    c = st.columns(5)
+    c[0].metric("Monthly Avg",      f"${adv['monthly_avg_profit']:,.2f}")
+    c[1].metric("Avg Trade",        f"${adv['avg_trade']:.2f}")
+    c[2].metric("Yearly Avg $",     f"${adv['yearly_avg_profit']:,.2f}")
+    c[3].metric("Yearly Avg %",     f"{adv['yearly_avg_pct']:.1f}%")
+    c[4].metric("Annual Max DD%",   f"-{adv['annual_max_dd_pct']:.2f}%")
+    c = st.columns(5)
+    c[0].metric("R Expectancy",     f"{adv['r_expectancy']:.3f}R")
+    c[1].metric("R Exp. Score",     f"{adv['r_expectancy_score']:.2f}")
+    c[2].metric("SQN",              f"{adv['sqn']:.2f} — {adv['sqn_label']}")
+    c[3].metric("CAGR",             f"{adv['cagr']:.1f}%")
+    c[4].metric("STR Quality",      adv['sqn_label'])
+
+with tab2:
+    rows = [
+        ("Wins / Losses Ratio",    f"{adv['wins_losses_ratio']:.2f}"),
+        ("Payout Ratio",           f"{adv['payout_ratio']:.2f}"),
+        ("Avg # Bars in Trade",    f"{adv['avg_bars_trade']:.1f}"),
+        ("AHPR",                   f"{adv['ahpr']:.4f}%"),
+        ("Z-Score",                f"{adv['z_score']:.2f}"),
+        ("Z-Probability",          f"{adv['z_probability']:.1f}%"),
+        ("Expectancy",             f"${adv['expectancy']:.2f}"),
+        ("Deviation",              f"${adv['deviation']:.2f}"),
+        ("Exposure",               f"{adv['exposure_pct']:.1f}%"),
+        ("Stagnation in Days",     f"{adv['stagnation_days']}"),
+        ("Stagnation in %",        f"{adv['stagnation_pct']:.1f}%"),
+    ]
+    st.dataframe(pd.DataFrame(rows, columns=["Métrica", "Valor"]),
+                 hide_index=True, use_container_width=True)
+
+with tab3:
+    rows = [
+        ("# of Wins",           adv['n_wins']),
+        ("# of Losses",         adv['n_losses']),
+        ("# Cancelled/Expired", adv['n_cancelled']),
+        ("Gross Profit",        f"${adv['gross_profit']:,.2f}"),
+        ("Gross Loss",          f"${adv['gross_loss']:,.2f}"),
+        ("Average Win",         f"${adv['avg_win']:,.2f}"),
+        ("Average Loss",        f"${adv['avg_loss']:,.2f}"),
+        ("Largest Win",         f"${adv['largest_win']:,.2f}"),
+        ("Largest Loss",        f"${adv['largest_loss']:,.2f}"),
+        ("Max Consec. Wins",    adv['max_consec_wins']),
+        ("Max Consec. Losses",  adv['max_consec_losses']),
+        ("Avg Consec. Wins",    f"{adv['avg_consec_wins']:.1f}"),
+        ("Avg Consec. Losses",  f"{adv['avg_consec_losses']:.1f}"),
+        ("Avg Bars in Wins",    f"{adv['avg_bars_wins']:.1f}"),
+        ("Avg Bars in Losses",  f"{adv['avg_bars_losses']:.1f}"),
+    ]
+    st.dataframe(pd.DataFrame(rows, columns=["Métrica", "Valor"]),
+                 hide_index=True, use_container_width=True)
+
+with tab4:
+    st.plotly_chart(plot_monthly_heatmap(mp),
+                    use_container_width=True, config={"displayModeBar": True})
+
+    def _color_monthly(val):
+        if isinstance(val, (int, float)):
+            return "color: #00cc66" if val > 0 else "color: #ff4444" if val < 0 else ""
+        return ""
+    st.dataframe(mp.style.map(_color_monthly).format("${:,.2f}"),
+                 use_container_width=True)
