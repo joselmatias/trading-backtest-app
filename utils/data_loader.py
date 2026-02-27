@@ -5,23 +5,32 @@ import streamlit as st
 from ta.volatility import BollingerBands
 from pathlib import Path
 
-DATA_PATH = Path("data/EURUSD_M15.csv")
+# Registro de datasets disponibles: nombre_display → ruta CSV
+DATASETS: dict[str, Path] = {
+    "Seacrest Market": Path("data/seacrest_market/EURUSD_M15.csv"),
+    "Alpha":           Path("data/alpha/EURUSD_M15.csv"),
+}
+
 BB_WINDOW = 20
 BB_DEV = 2
 
 
 @st.cache_data
-def load_csv() -> pd.DataFrame | None:
+def load_csv(dataset: str) -> pd.DataFrame | None:
     """Load and preprocess OHLC CSV exported from MetaTrader.
+
+    Args:
+        dataset: Nombre del dataset (debe existir en DATASETS).
 
     Expects tab-separated columns: <DATE> <TIME> <OPEN> <HIGH> <LOW> <CLOSE> ...
     Returns DataFrame with DatetimeIndex and uppercase OHLC columns, or None on error.
     """
-    if not DATA_PATH.exists():
+    data_path = DATASETS.get(dataset)
+    if data_path is None or not data_path.exists():
         return None
     try:
         df = pd.read_csv(
-            DATA_PATH,
+            data_path,
             sep="\t",
             encoding="utf-8-sig",
             skipinitialspace=True,

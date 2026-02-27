@@ -7,7 +7,7 @@ All business logic lives in utils/.
 import pandas as pd
 import streamlit as st
 
-from utils.data_loader import calculate_indicators, load_csv
+from utils.data_loader import DATASETS, calculate_indicators, load_csv
 from utils.charts import plot_drawdown_abs, plot_drawdown_pct, plot_equity_curve
 from utils.metrics import calculate_metrics
 from utils.strategy import run_backtest
@@ -22,13 +22,23 @@ st.set_page_config(
 st.title("📊 TRADING BACKTEST ANALYZER — EURUSD M15")
 st.divider()
 
+# ── Dataset selector (sidebar) ────────────────────────────────────────────────
+with st.sidebar:
+    st.header("⚙️ Configuración")
+    dataset = st.radio(
+        "Selecciona dataset:",
+        options=list(DATASETS.keys()),
+        index=0,
+    )
+    st.caption(f"📁 `{DATASETS[dataset]}`")
+
 # ── Load & validate data ──────────────────────────────────────────────────────
-df_raw = load_csv()
+df_raw = load_csv(dataset)
 
 if df_raw is None:
     st.error(
-        "Archivo no encontrado o con formato incorrecto: `data/EURUSD_M15.csv`  \n"
-        "Asegúrate de que el archivo existe y tiene columnas: "
+        f"Archivo no encontrado: `{DATASETS[dataset]}`  \n"
+        "Asegúrate de que el CSV existe y tiene columnas: "
         "`<DATE>  <TIME>  <OPEN>  <HIGH>  <LOW>  <CLOSE>`"
     )
     st.stop()
