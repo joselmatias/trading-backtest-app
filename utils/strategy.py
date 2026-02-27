@@ -6,12 +6,12 @@ import streamlit as st
 # --- Strategy constants ---
 INITIAL_CAPITAL = 5_000.0
 VOLUME = 0.25
-COMMISSION = 2.5          # USD per trade
+COMMISSION = 2.5
 PIP = 0.00010
-PIP_VALUE = VOLUME * 10   # $2.50 per pip at 0.25 lots
+PIP_VALUE = VOLUME * 10
 
-BODY_MIN = 7 * PIP        # Minimum candle body
-WICK_MAX = 4 * PIP        # Maximum wick (upper or lower)
+BODY_MIN = 7 * PIP
+WICK_MAX = 4 * PIP
 SL_PIPS = 20
 TP_PIPS = 100
 
@@ -42,12 +42,7 @@ def _find_close(
     sl: float,
     tp: float,
 ) -> dict | None:
-    """Search forward from start_idx for first SL or TP hit.
-
-    For ambiguous candles (both hit), SL is prioritised (conservative).
-
-    Returns dict with idx, time, price, hit ('SL'/'TP'), or None if not found.
-    """
+    """Search forward from start_idx for first SL or TP hit."""
     for j in range(start_idx, len(df)):
         candle = df.iloc[j]
         hit_sl = hit_tp = False
@@ -79,8 +74,7 @@ def run_backtest(df: pd.DataFrame) -> pd.DataFrame:
 
     Rules:
     - Signal on candle i → entry at OPEN of candle i+1
-    - SL: 20 pips from entry | TP: 100 pips from entry
-    - Only 1 active trade at a time
+    - SL: 20 pips | TP: 100 pips
     - Stop trading for the day after any losing trade
 
     Args:
@@ -90,36 +84,38 @@ def run_backtest(df: pd.DataFrame) -> pd.DataFrame:
         DataFrame with one row per trade and cumulative Capital column.
     """
     capital = INITIAL_CAPITAL
-    results: list[dict] = []
+    results = []
 
     current_day = None
     puede_operar = True
-    i = 1
+    registro_primera_operacion = False
 
-    while i < len(df) - 1:
+    # CORRECCIÓN: for range normal, sin saltar velas
+    for i in range(1, len(df) - 1):
         row = df.iloc[i]
         next_row = df.iloc[i + 1]
 
         entry_time = next_row.name
+        if pd.isna(entry_time):
+            continue
+
         entry_date = entry_time.date()
 
-        # Daily reset
+        # Reset diario
         if current_day != entry_date:
             current_day = entry_date
             puede_operar = True
+            registro_primera_operacion = False
 
         if not puede_operar:
-            i += 1
             continue
 
-        # Candle filter
+        # Filtro de vela
         if not _candle_ok(row["OPEN"], row["HIGH"], row["LOW"], row["CLOSE"]):
-            i += 1
             continue
 
         signal = _detect_signal(row)
         if signal is None:
-            i += 1
             continue
 
         entry_price = next_row["OPEN"]
@@ -131,12 +127,10 @@ def run_backtest(df: pd.DataFrame) -> pd.DataFrame:
             sl = entry_price + SL_PIPS * PIP
             tp = entry_price - TP_PIPS * PIP
 
-        # Search for SL/TP hit starting from the entry candle itself
+        # Buscar cierre
         close_info = _find_close(df, i + 1, signal, sl, tp)
 
         if close_info is None:
-            # Trade never closed (end of data) — skip without recording
-            i += 1
             continue
 
         pnl = _calc_pnl(signal, entry_price, close_info["price"])
@@ -156,11 +150,12 @@ def run_backtest(df: pd.DataFrame) -> pd.DataFrame:
             "Capital": capital,
         })
 
-        # Stop trading for the day after a loss
-        if pnl < 0:
+        # Control diario: para si hay pérdida
+        if not registro_primera_operacion:
+            registro_primera_operacion = True
+            if pnl < 0:
+                puede_operar = False
+        elif pnl < 0:
             puede_operar = False
-
-        # Jump past the closing candle (1 trade at a time)
-        i = close_info["idx"] + 1
 
     return pd.DataFrame(results) if results else pd.DataFrame()
