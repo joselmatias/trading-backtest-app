@@ -2,6 +2,7 @@
 
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 INITIAL_CAPITAL = 5_000.0
 COLOR_BLUE = "#1f77b4"
@@ -102,5 +103,124 @@ def plot_drawdown_pct(df_trades: pd.DataFrame) -> go.Figure:
         yaxis_title="Drawdown (%)",
         template="plotly_dark",
         margin=dict(t=50, b=40),
+    )
+    return fig
+
+
+# ── Analytics charts ──────────────────────────────────────────────────────────
+
+def _bar_colors(values: list) -> list[str]:
+    """Green for positive values, red for negative."""
+    return [COLOR_GREEN if v >= 0 else COLOR_RED for v in values]
+
+
+def plot_pnl_by_weekday(df_analysis: pd.DataFrame) -> go.Figure:
+    """Bar chart of total P/L per weekday."""
+    labels = df_analysis["weekday"].tolist()
+    values = df_analysis["total_pnl"].tolist()
+    trades = df_analysis["trades"].tolist()
+
+    fig = go.Figure(go.Bar(
+        x=labels, y=values,
+        marker_color=_bar_colors(values),
+        hovertemplate="<b>%{x}</b><br>P/L: $%{y:,.2f}<br>Trades: %{customdata}<extra></extra>",
+        customdata=trades,
+    ))
+    fig.add_hline(y=0, line_color="gray", line_width=1)
+    fig.update_layout(
+        title="P/L por Día de la Semana",
+        xaxis_title="Día", yaxis_title="P/L (USD)",
+        template="plotly_dark", margin=dict(t=50, b=40),
+    )
+    return fig
+
+
+def plot_pnl_by_hour(df_analysis: pd.DataFrame) -> go.Figure:
+    """Bar chart of total P/L per entry hour."""
+    hours  = df_analysis["hour"].tolist()
+    values = df_analysis["total_pnl"].tolist()
+    trades = df_analysis["trades"].tolist()
+
+    fig = go.Figure(go.Bar(
+        x=hours, y=values,
+        marker_color=_bar_colors(values),
+        hovertemplate="<b>%{x}:00h</b><br>P/L: $%{y:,.2f}<br>Trades: %{customdata}<extra></extra>",
+        customdata=trades,
+    ))
+    fig.add_hline(y=0, line_color="gray", line_width=1)
+    fig.update_layout(
+        title="P/L por Hora de Entrada",
+        xaxis=dict(title="Hora", dtick=1),
+        yaxis_title="P/L (USD)",
+        template="plotly_dark", margin=dict(t=50, b=40),
+    )
+    return fig
+
+
+def plot_long_vs_short(df_analysis: pd.DataFrame) -> go.Figure:
+    """Grouped bar chart comparing BUY vs SELL on key metrics."""
+    tipos  = df_analysis["Tipo"].tolist()
+    colors = [COLOR_GREEN if t == "BUY" else COLOR_RED for t in tipos]
+
+    fig = make_subplots(
+        rows=1, cols=3,
+        subplot_titles=("Total P/L ($)", "Win Rate (%)", "Avg P/L por Trade ($)"),
+    )
+    for col, metric in enumerate(["Total P/L", "Win Rate", "Avg P/L"], start=1):
+        fig.add_trace(go.Bar(
+            x=tipos, y=df_analysis[metric].tolist(),
+            marker_color=colors, showlegend=False,
+            hovertemplate=f"<b>%{{x}}</b><br>{metric}: %{{y:.2f}}<extra></extra>",
+        ), row=1, col=col)
+
+    fig.update_layout(
+        title="Long vs Short — Comparativa",
+        template="plotly_dark", margin=dict(t=60, b=40),
+    )
+    return fig
+
+
+def plot_wins_losses_by_day(df_analysis: pd.DataFrame) -> go.Figure:
+    """Stacked bar chart of daily wins and losses."""
+    dates = df_analysis["date"].tolist()
+    wins  = df_analysis.get("Win",  pd.Series(dtype=int)).tolist()
+    losses = df_analysis.get("Loss", pd.Series(dtype=int)).tolist()
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=dates, y=wins, name="Win", marker_color=COLOR_GREEN,
+        hovertemplate="<b>%{x}</b><br>Wins: %{y}<extra></extra>",
+    ))
+    fig.add_trace(go.Bar(
+        x=dates, y=losses, name="Loss", marker_color=COLOR_RED,
+        hovertemplate="<b>%{x}</b><br>Losses: %{y}<extra></extra>",
+    ))
+    fig.update_layout(
+        title="Wins / Losses por Día",
+        barmode="stack",
+        xaxis_title="Fecha", yaxis_title="Trades",
+        template="plotly_dark", margin=dict(t=50, b=40),
+    )
+    return fig
+
+
+def plot_trade_duration(durations: pd.Series) -> go.Figure:
+    """Histogram of trade durations in minutes with average line."""
+    avg = durations.mean()
+
+    fig = go.Figure(go.Histogram(
+        x=durations, nbinsx=40,
+        marker_color=COLOR_BLUE, opacity=0.85,
+        hovertemplate="Duración: %{x:.0f} min<br>Trades: %{y}<extra></extra>",
+    ))
+    fig.add_vline(
+        x=avg, line_dash="dash", line_color="orange",
+        annotation_text=f"Promedio: {avg:.0f} min",
+        annotation_position="top right",
+    )
+    fig.update_layout(
+        title="Distribución de Duración de Trades",
+        xaxis_title="Duración (minutos)", yaxis_title="Número de Trades",
+        template="plotly_dark", margin=dict(t=50, b=40),
     )
     return fig

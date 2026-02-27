@@ -8,9 +8,17 @@ import pandas as pd
 import streamlit as st
 
 from utils.data_loader import DATASETS, calculate_indicators, load_csv
-from utils.charts import plot_drawdown_abs, plot_drawdown_pct, plot_equity_curve
+from utils.charts import (
+    plot_drawdown_abs, plot_drawdown_pct, plot_equity_curve,
+    plot_pnl_by_weekday, plot_pnl_by_hour, plot_long_vs_short,
+    plot_wins_losses_by_day, plot_trade_duration,
+)
 from utils.metrics import calculate_metrics
 from utils.strategy import run_backtest
+from utils.analytics import (
+    pnl_by_weekday, pnl_by_hour, long_vs_short,
+    wins_losses_by_day, trade_duration_minutes,
+)
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -139,4 +147,36 @@ st.dataframe(
         .format(fmt),
     use_container_width=True,
     hide_index=True,
+)
+
+st.divider()
+
+# ── Analytics ─────────────────────────────────────────────────────────────────
+st.subheader("📊 Analytics")
+
+col_a1, col_a2 = st.columns(2)
+with col_a1:
+    st.plotly_chart(
+        plot_pnl_by_weekday(pnl_by_weekday(df_trades)),
+        use_container_width=True, config={"displayModeBar": True},
+    )
+with col_a2:
+    st.plotly_chart(
+        plot_pnl_by_hour(pnl_by_hour(df_trades)),
+        use_container_width=True, config={"displayModeBar": True},
+    )
+
+st.plotly_chart(
+    plot_long_vs_short(long_vs_short(df_trades)),
+    use_container_width=True, config={"displayModeBar": True},
+)
+
+st.plotly_chart(
+    plot_wins_losses_by_day(wins_losses_by_day(df_trades)),
+    use_container_width=True, config={"displayModeBar": True},
+)
+
+st.plotly_chart(
+    plot_trade_duration(trade_duration_minutes(df_trades)),
+    use_container_width=True, config={"displayModeBar": True},
 )
