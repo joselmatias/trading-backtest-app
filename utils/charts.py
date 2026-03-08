@@ -14,23 +14,28 @@ COLOR_GREEN = "#00cc66"
 def plot_equity_curve(df_trades: pd.DataFrame) -> go.Figure:
     """Line chart of cumulative capital over time.
 
-    Starts at INITIAL_CAPITAL (first trade open), ends at last trade close.
-    For multi-day trades: commission is recorded at Fecha Apertura,
-    P&L is recorded at Fecha Cierre.
-    For same-day trades: single point at Fecha Cierre.
+    Builds events sorted chronologically to avoid backwards jumps from overlapping trades.
+    Multi-day trades: commission recorded at Fecha Apertura, gross P&L at Fecha Cierre.
+    Same-day trades: single net event at Fecha Cierre.
     """
-    dates = [df_trades["Fecha Apertura"].iloc[0]]
-    equity = [INITIAL_CAPITAL]
-
-    prev_capital = INITIAL_CAPITAL
+    events = []  # (datetime, capital_delta)
     for _, row in df_trades.iterrows():
         is_multiday = row["Fecha Cierre"].date() > row["Fecha Apertura"].date()
         if is_multiday:
-            dates.append(row["Fecha Apertura"])
-            equity.append(prev_capital - COMMISSION)
-        dates.append(row["Fecha Cierre"])
-        equity.append(row["Capital"])
-        prev_capital = row["Capital"]
+            events.append((row["Fecha Apertura"], -COMMISSION))
+            events.append((row["Fecha Cierre"], row["Beneficio"] + COMMISSION))
+        else:
+            events.append((row["Fecha Cierre"], row["Beneficio"]))
+
+    events.sort(key=lambda x: x[0])
+
+    dates = [df_trades["Fecha Apertura"].min()]
+    equity = [INITIAL_CAPITAL]
+    capital = INITIAL_CAPITAL
+    for dt, delta in events:
+        capital = round(capital + delta, 2)
+        dates.append(dt)
+        equity.append(capital)
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
