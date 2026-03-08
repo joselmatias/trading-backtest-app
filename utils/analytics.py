@@ -124,6 +124,18 @@ def streak_analysis(df_trades: pd.DataFrame) -> pd.DataFrame:
 
 
 @st.cache_data
-def pnl_frequency(df_trades: pd.DataFrame) -> pd.Series:
-    """Raw P&L series for frequency distribution and CDF analysis."""
-    return df_trades["Beneficio"].copy()
+def pnl_frequency(df_trades: pd.DataFrame) -> pd.DataFrame:
+    """Frequency table of P&L: absolute, relative and cumulative."""
+    pnl = df_trades["Beneficio"]
+    bins = pd.cut(pnl, bins=12)
+    freq = bins.value_counts().sort_index()
+    total = len(pnl)
+    rel = (freq / total * 100).round(2)
+    cum = rel.cumsum().round(2)
+
+    return pd.DataFrame({
+        "Rango P&L":            [f"${b.left:,.2f}  →  ${b.right:,.2f}" for b in freq.index],
+        "N° Trades":            freq.values,
+        "Frec. Relativa (%)":   rel.values,
+        "Frec. Acumulada (%)":  cum.values,
+    })

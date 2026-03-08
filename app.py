@@ -12,7 +12,7 @@ from utils.charts import (
     plot_drawdown_abs, plot_drawdown_pct, plot_equity_curve,
     plot_pnl_by_weekday, plot_pnl_by_hour, plot_long_vs_short,
     plot_wins_losses_by_day, plot_trade_duration, plot_monthly_heatmap,
-    plot_streaks, plot_pnl_frequency,
+    plot_streaks,
 )
 from utils.metrics import calculate_metrics, calculate_advanced_metrics, monthly_performance
 from utils.strategy import run_backtest
@@ -188,9 +188,15 @@ st.plotly_chart(
     use_container_width=True, config={"displayModeBar": True},
 )
 
-st.plotly_chart(
-    plot_pnl_frequency(pnl_frequency(df_trades)),
-    use_container_width=True, config={"displayModeBar": True},
+st.markdown("**Distribución de P&L — Frecuencia Relativa y Acumulada**")
+df_freq = pnl_frequency(df_trades)
+st.dataframe(
+    df_freq.style.format({
+        "Frec. Relativa (%)":  "{:.2f}%",
+        "Frec. Acumulada (%)": "{:.2f}%",
+    }),
+    use_container_width=True,
+    hide_index=True,
 )
 
 st.divider()
