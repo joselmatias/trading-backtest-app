@@ -20,8 +20,6 @@ _PLOTLY_LAYOUT = dict(
     paper_bgcolor=BG_COLOR,
     plot_bgcolor=BG_COLOR,
     font=dict(color=TEXT_COLOR, family="Inter, sans-serif"),
-    xaxis=dict(gridcolor=GRID_COLOR, zerolinecolor=GRID_COLOR),
-    yaxis=dict(gridcolor=GRID_COLOR, zerolinecolor=GRID_COLOR),
 )
 
 
