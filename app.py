@@ -188,13 +188,23 @@ st.plotly_chart(
     use_container_width=True, config={"displayModeBar": True},
 )
 
-st.markdown("**Distribución de P&L — Frecuencia Relativa y Acumulada**")
+st.markdown("**Rachas — Frecuencia Relativa y Acumulada**")
 df_freq = pnl_frequency(df_trades)
+
+
+def _color_streak_row(row):
+    color = "color: #00cc66" if row["Tipo"] == "Win" else "color: #ff4444"
+    return [color] * len(row)
+
+
 st.dataframe(
-    df_freq.style.format({
-        "Frec. Relativa (%)":  "{:.2f}%",
-        "Frec. Acumulada (%)": "{:.2f}%",
-    }),
+    df_freq.style
+        .apply(_color_streak_row, axis=1)
+        .format({
+            "P&L ($)":             "${:,.2f}",
+            "Frec. Relativa (%)":  "{:.2f}%",
+            "Frec. Acumulada (%)": "{:.2f}%",
+        }),
     use_container_width=True,
     hide_index=True,
 )

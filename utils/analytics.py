@@ -125,17 +125,14 @@ def streak_analysis(df_trades: pd.DataFrame) -> pd.DataFrame:
 
 @st.cache_data
 def pnl_frequency(df_trades: pd.DataFrame) -> pd.DataFrame:
-    """Frequency table of P&L: absolute, relative and cumulative."""
-    pnl = df_trades["Beneficio"]
-    bins = pd.cut(pnl, bins=12)
-    freq = bins.value_counts().sort_index()
-    total = len(pnl)
-    rel = (freq / total * 100).round(2)
-    cum = rel.cumsum().round(2)
-
-    return pd.DataFrame({
-        "Rango P&L":            [f"${b.left:,.2f}  →  ${b.right:,.2f}" for b in freq.index],
-        "N° Trades":            freq.values,
-        "Frec. Relativa (%)":   rel.values,
-        "Frec. Acumulada (%)":  cum.values,
-    })
+    """Streak table enriched with relative and cumulative frequency per streak."""
+    df = streak_analysis(df_trades).copy()
+    total_trades = df["longitud"].sum()
+    df["Frec. Relativa (%)"] = (df["longitud"] / total_trades * 100).round(2)
+    df["Frec. Acumulada (%)"] = df["Frec. Relativa (%)"].cumsum().round(2)
+    return df.rename(columns={
+        "racha":    "Racha #",
+        "tipo":     "Tipo",
+        "longitud": "Longitud",
+        "pnl":      "P&L ($)",
+    })[["Racha #", "Tipo", "Longitud", "P&L ($)", "Frec. Relativa (%)", "Frec. Acumulada (%)"]]
