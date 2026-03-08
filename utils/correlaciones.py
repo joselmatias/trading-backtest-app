@@ -114,9 +114,8 @@ def plot_heatmap(df_returns: pd.DataFrame) -> go.Figure:
         zmin=-1,
         zmax=1,
         colorbar=dict(
-            title="Correlación",
+            title=dict(text="Correlación", font=dict(color=TEXT_COLOR)),
             tickfont=dict(color=TEXT_COLOR),
-            titlefont=dict(color=TEXT_COLOR),
         ),
     ))
 
