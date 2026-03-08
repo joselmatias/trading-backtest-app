@@ -22,7 +22,7 @@ from utils.analytics import (
     streak_analysis, pnl_frequency, equity_curve_data,
 )
 from utils.correlaciones import (
-    cargar_datos, alinear_retornos,
+    cargar_datos, alinear_retornos, resamplear_series, TIMEFRAMES,
     plot_heatmap, plot_rolling_corr, plot_scatter_retornos, tabla_descorrelacion,
 )
 
@@ -350,6 +350,14 @@ elif modulo == "🔗 Correlaciones":
 
     assets = list(series_dict.keys())
 
+    # ── Timeframe selector ────────────────────────────────────────────────────
+    timeframe = st.radio(
+        "Temporalidad:",
+        options=list(TIMEFRAMES.keys()),
+        index=0,
+        horizontal=True,
+    )
+
     with st.sidebar:
         st.markdown("**Activos cargados**")
         for a in assets:
@@ -363,7 +371,8 @@ elif modulo == "🔗 Correlaciones":
             index=0,
         )
 
-    df_returns = alinear_retornos(series_dict)
+    series_tf = resamplear_series(series_dict, timeframe)
+    df_returns = alinear_retornos(series_tf)
 
     # ── Stats summary ─────────────────────────────────────────────────────────
     n_assets = len(assets)

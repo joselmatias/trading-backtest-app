@@ -71,6 +71,26 @@ def cargar_datos() -> tuple[dict[str, pd.Series], str | None]:
     return series, None
 
 
+# ── Resampling ────────────────────────────────────────────────────────────────
+
+TIMEFRAMES = {"M15": None, "1H": "1h", "4H": "4h", "1D": "1D"}
+
+
+@st.cache_data
+def resamplear_series(
+    series: dict[str, pd.Series], timeframe: str
+) -> dict[str, pd.Series]:
+    """Resample all Close price series to a higher timeframe.
+
+    timeframe must be a key of TIMEFRAMES. 'M15' returns the original series.
+    Uses last() to get the closing price of each period.
+    """
+    rule = TIMEFRAMES.get(timeframe)
+    if rule is None:
+        return series  # M15 — no resampling needed
+    return {name: s.resample(rule).last().dropna() for name, s in series.items()}
+
+
 # ── Return alignment ──────────────────────────────────────────────────────────
 
 @st.cache_data
