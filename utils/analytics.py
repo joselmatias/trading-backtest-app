@@ -124,15 +124,25 @@ def streak_analysis(df_trades: pd.DataFrame) -> pd.DataFrame:
 
 
 @st.cache_data
-def pnl_frequency(df_trades: pd.DataFrame) -> pd.DataFrame:
-    """Streak table enriched with relative and cumulative frequency per streak."""
-    df = streak_analysis(df_trades).copy()
-    total_trades = df["longitud"].sum()
-    df["Frec. Relativa (%)"] = (df["longitud"] / total_trades * 100).round(2)
-    df["Frec. Acumulada (%)"] = df["Frec. Relativa (%)"].cumsum().round(2)
-    return df.rename(columns={
-        "racha":    "Racha #",
-        "tipo":     "Tipo",
-        "longitud": "Longitud",
-        "pnl":      "P&L ($)",
-    })[["Racha #", "Tipo", "Longitud", "P&L ($)", "Frec. Relativa (%)", "Frec. Acumulada (%)"]]
+def pnl_frequency(df_trades: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Frequency of streak lengths, split into Win and Loss tables.
+
+    Returns (df_wins, df_losses) where the analysis variable is streak length.
+    """
+    df = streak_analysis(df_trades)
+
+    def _freq_table(subset: pd.DataFrame) -> pd.DataFrame:
+        freq = subset["longitud"].value_counts().sort_index()
+        total = freq.sum()
+        rel = (freq / total * 100).round(2)
+        cum = rel.cumsum().round(2)
+        return pd.DataFrame({
+            "Longitud Racha":      freq.index,
+            "N° Rachas":           freq.values,
+            "Frec. Relativa (%)":  rel.values,
+            "Frec. Acumulada (%)": cum.values,
+        })
+
+    df_wins   = _freq_table(df[df["tipo"] == "Win"])
+    df_losses = _freq_table(df[df["tipo"] == "Loss"])
+    return df_wins, df_losses
