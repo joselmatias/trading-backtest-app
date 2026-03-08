@@ -66,11 +66,31 @@ def plot_equity_curve(df_trades: pd.DataFrame) -> go.Figure:
 
 
 def _build_equity_series(df_trades: pd.DataFrame) -> pd.Series:
-    """Build equity series indexed by Fecha Cierre, prepended with initial capital."""
-    first_date = df_trades["Fecha Cierre"].iloc[0]
-    init = pd.Series([INITIAL_CAPITAL], index=[first_date])
-    rest = df_trades.set_index("Fecha Cierre")["Capital"]
-    return pd.concat([init, rest])
+    """Build equity series sorted chronologically using the same event logic as plot_equity_curve.
+
+    Multi-day trades: commission at Fecha Apertura, gross P&L at Fecha Cierre.
+    Same-day trades: single net event at Fecha Cierre.
+    """
+    events = []
+    for _, row in df_trades.iterrows():
+        is_multiday = row["Fecha Cierre"].date() > row["Fecha Apertura"].date()
+        if is_multiday:
+            events.append((row["Fecha Apertura"], -COMMISSION))
+            events.append((row["Fecha Cierre"], row["Beneficio"] + COMMISSION))
+        else:
+            events.append((row["Fecha Cierre"], row["Beneficio"]))
+
+    events.sort(key=lambda x: x[0])
+
+    dates = [df_trades["Fecha Apertura"].min()]
+    values = [INITIAL_CAPITAL]
+    capital = INITIAL_CAPITAL
+    for dt, delta in events:
+        capital = round(capital + delta, 2)
+        dates.append(dt)
+        values.append(capital)
+
+    return pd.Series(values, index=dates)
 
 
 def plot_drawdown_abs(df_trades: pd.DataFrame) -> go.Figure:
