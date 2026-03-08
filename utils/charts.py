@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 INITIAL_CAPITAL = 5_000.0
+COMMISSION = 2.5
 COLOR_BLUE = "#1f77b4"
 COLOR_RED = "#ff4444"
 COLOR_GREEN = "#00cc66"
@@ -14,9 +15,22 @@ def plot_equity_curve(df_trades: pd.DataFrame) -> go.Figure:
     """Line chart of cumulative capital over time.
 
     Starts at INITIAL_CAPITAL (first trade open), ends at last trade close.
+    For multi-day trades: commission is recorded at Fecha Apertura,
+    P&L is recorded at Fecha Cierre.
+    For same-day trades: single point at Fecha Cierre.
     """
-    dates = [df_trades["Fecha Apertura"].iloc[0]] + df_trades["Fecha Cierre"].tolist()
-    equity = [INITIAL_CAPITAL] + df_trades["Capital"].tolist()
+    dates = [df_trades["Fecha Apertura"].iloc[0]]
+    equity = [INITIAL_CAPITAL]
+
+    prev_capital = INITIAL_CAPITAL
+    for _, row in df_trades.iterrows():
+        is_multiday = row["Fecha Cierre"].date() > row["Fecha Apertura"].date()
+        if is_multiday:
+            dates.append(row["Fecha Apertura"])
+            equity.append(prev_capital - COMMISSION)
+        dates.append(row["Fecha Cierre"])
+        equity.append(row["Capital"])
+        prev_capital = row["Capital"]
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
