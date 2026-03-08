@@ -13,12 +13,7 @@ COLOR_GREEN = "#00cc66"
 
 
 def plot_equity_curve(df_trades: pd.DataFrame) -> go.Figure:
-    """Line chart of cumulative capital over time.
-
-    Builds events sorted chronologically to avoid backwards jumps from overlapping trades.
-    Multi-day trades: commission recorded at Fecha Apertura, gross P&L at Fecha Cierre.
-    Same-day trades: single net event at Fecha Cierre.
-    """
+    """Equity curve (top) + drawdown % mini chart (bottom), shared X axis."""
     events = []  # (datetime, capital_delta)
     for _, row in df_trades.iterrows():
         is_multiday = row["Fecha Cierre"].date() > row["Fecha Apertura"].date()
@@ -38,31 +33,57 @@ def plot_equity_curve(df_trades: pd.DataFrame) -> go.Figure:
         dates.append(dt)
         equity.append(capital)
 
-    fig = go.Figure()
+    # Drawdown %
+    eq_series = pd.Series(equity, index=dates)
+    running_max = eq_series.cummax()
+    dd_pct = -((running_max - eq_series) / running_max * 100)
+
+    fig = make_subplots(
+        rows=2, cols=1,
+        shared_xaxes=True,
+        row_heights=[0.72, 0.28],
+        vertical_spacing=0.03,
+    )
+
+    # ── Row 1: Equity Curve ────────────────────────────────────────────────────
     fig.add_trace(go.Scatter(
-        x=dates,
-        y=equity,
+        x=dates, y=equity,
         mode="lines+markers",
         line=dict(color=COLOR_BLUE, width=2),
-        marker=dict(size=5),
+        marker=dict(size=4),
         name="Capital",
         hovertemplate="<b>%{x}</b><br>Capital: $%{y:,.2f}<extra></extra>",
-    ))
+    ), row=1, col=1)
+
     fig.add_hline(
-        y=INITIAL_CAPITAL,
-        line_dash="dot",
-        line_color="gray",
+        y=INITIAL_CAPITAL, line_dash="dot", line_color="gray",
         annotation_text=f"Capital Inicial ${INITIAL_CAPITAL:,.0f}",
         annotation_position="bottom right",
+        row=1, col=1,
     )
+
+    # ── Row 2: Drawdown % mini ─────────────────────────────────────────────────
+    fig.add_trace(go.Scatter(
+        x=dates, y=dd_pct.values,
+        mode="lines",
+        line=dict(color=COLOR_RED, width=1),
+        fill="tozeroy",
+        fillcolor="rgba(255, 68, 68, 0.25)",
+        name="Drawdown %",
+        hovertemplate="<b>%{x}</b><br>DD: %{y:.2f}%<extra></extra>",
+    ), row=2, col=1)
+
     fig.update_layout(
         title="Equity Curve",
-        xaxis_title="Fecha",
-        yaxis_title="Capital (USD)",
         hovermode="x unified",
         template="plotly_dark",
+        showlegend=False,
         margin=dict(t=50, b=40),
+        height=520,
     )
+    fig.update_yaxes(title_text="Capital (USD)", row=1, col=1)
+    fig.update_yaxes(title_text="DD (%)", row=2, col=1)
+    fig.update_xaxes(title_text="Fecha", row=2, col=1)
     return fig
 
 
