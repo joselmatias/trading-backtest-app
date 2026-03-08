@@ -80,3 +80,63 @@ def trade_duration_minutes(df_trades: pd.DataFrame) -> pd.Series:
         .div(60)
         .rename("duration_min")
     )
+
+
+@st.cache_data
+def streak_analysis(df_trades: pd.DataFrame) -> pd.DataFrame:
+    """Consecutive win/loss streaks with length and cumulative P&L per streak."""
+    streaks = []
+    current_win = None
+    count = 0
+    pnl = 0.0
+    streak_num = 0
+
+    for _, row in df_trades.iterrows():
+        is_win = row["Beneficio"] > 0
+        if current_win is None or is_win == current_win:
+            count += 1
+            pnl += row["Beneficio"]
+            current_win = is_win
+        else:
+            streak_num += 1
+            streaks.append({
+                "racha": streak_num,
+                "tipo": "Win" if current_win else "Loss",
+                "longitud": count,
+                "pnl": round(pnl, 2),
+                "longitud_signed": count if current_win else -count,
+            })
+            current_win = is_win
+            count = 1
+            pnl = row["Beneficio"]
+
+    if current_win is not None:
+        streak_num += 1
+        streaks.append({
+            "racha": streak_num,
+            "tipo": "Win" if current_win else "Loss",
+            "longitud": count,
+            "pnl": round(pnl, 2),
+            "longitud_signed": count if current_win else -count,
+        })
+
+    return pd.DataFrame(streaks)
+
+
+@st.cache_data
+def pnl_frequency(df_trades: pd.DataFrame) -> pd.DataFrame:
+    """Relative and cumulative frequency distribution of trade P&L."""
+    pnl = df_trades["Beneficio"]
+    bins = pd.cut(pnl, bins=12)
+    freq = bins.value_counts().sort_index()
+    total = len(pnl)
+    rel_freq = (freq / total * 100).round(2)
+    cum_freq = rel_freq.cumsum().round(2)
+
+    return pd.DataFrame({
+        "bin_label": [f"${b.left:,.0f} → ${b.right:,.0f}" for b in freq.index],
+        "bin_mid":   [b.mid for b in freq.index],
+        "count":     freq.values,
+        "rel_freq":  rel_freq.values,
+        "cum_freq":  cum_freq.values,
+    })

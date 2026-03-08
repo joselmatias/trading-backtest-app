@@ -267,6 +267,71 @@ def plot_monthly_heatmap(df_monthly: pd.DataFrame) -> go.Figure:
     return fig
 
 
+def plot_streaks(df_streaks: pd.DataFrame) -> go.Figure:
+    """Bar chart of consecutive win/loss streaks (positive = wins, negative = losses)."""
+    colors = [COLOR_GREEN if t == "Win" else COLOR_RED for t in df_streaks["tipo"]]
+
+    fig = go.Figure(go.Bar(
+        x=df_streaks["racha"],
+        y=df_streaks["longitud_signed"],
+        marker_color=colors,
+        customdata=list(zip(df_streaks["tipo"], df_streaks["longitud"], df_streaks["pnl"])),
+        hovertemplate=(
+            "<b>Racha #%{x}</b><br>"
+            "Tipo: %{customdata[0]}<br>"
+            "Longitud: %{customdata[1]} trades<br>"
+            "P&L acumulado: $%{customdata[2]:,.2f}<extra></extra>"
+        ),
+    ))
+    fig.add_hline(y=0, line_color="gray", line_width=1)
+    fig.update_layout(
+        title="Rachas Consecutivas (Wins / Losses)",
+        xaxis_title="Racha #",
+        yaxis_title="Trades consecutivos",
+        template="plotly_dark",
+        margin=dict(t=50, b=40),
+    )
+    return fig
+
+
+def plot_pnl_frequency(df_freq: pd.DataFrame) -> go.Figure:
+    """Bar chart (relative frequency) + line (cumulative frequency) of P&L distribution."""
+    bar_colors = [COLOR_GREEN if m >= 0 else COLOR_RED for m in df_freq["bin_mid"]]
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(go.Bar(
+        x=df_freq["bin_label"],
+        y=df_freq["rel_freq"],
+        marker_color=bar_colors,
+        name="Frecuencia relativa (%)",
+        hovertemplate="<b>%{x}</b><br>Frecuencia: %{y:.1f}%<br>Trades: %{customdata}<extra></extra>",
+        customdata=df_freq["count"],
+    ), secondary_y=False)
+
+    fig.add_trace(go.Scatter(
+        x=df_freq["bin_label"],
+        y=df_freq["cum_freq"],
+        mode="lines+markers",
+        line=dict(color="orange", width=2),
+        marker=dict(size=6),
+        name="Frecuencia acumulada (%)",
+        hovertemplate="<b>%{x}</b><br>Acumulada: %{y:.1f}%<extra></extra>",
+    ), secondary_y=True)
+
+    fig.update_layout(
+        title="Distribución de P&L — Frecuencia Relativa y Acumulada",
+        xaxis_title="Rango de P&L",
+        template="plotly_dark",
+        margin=dict(t=50, b=80),
+        legend=dict(orientation="h", y=1.08),
+        xaxis_tickangle=-35,
+    )
+    fig.update_yaxes(title_text="Frecuencia relativa (%)", secondary_y=False)
+    fig.update_yaxes(title_text="Frecuencia acumulada (%)", secondary_y=True, range=[0, 105])
+    return fig
+
+
 def plot_trade_duration(durations: pd.Series) -> go.Figure:
     """Histogram of trade durations in minutes with average line."""
     avg = durations.mean()

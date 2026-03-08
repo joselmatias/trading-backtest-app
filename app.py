@@ -12,12 +12,14 @@ from utils.charts import (
     plot_drawdown_abs, plot_drawdown_pct, plot_equity_curve,
     plot_pnl_by_weekday, plot_pnl_by_hour, plot_long_vs_short,
     plot_wins_losses_by_day, plot_trade_duration, plot_monthly_heatmap,
+    plot_streaks, plot_pnl_frequency,
 )
 from utils.metrics import calculate_metrics, calculate_advanced_metrics, monthly_performance
 from utils.strategy import run_backtest
 from utils.analytics import (
     pnl_by_weekday, pnl_by_hour, long_vs_short,
     wins_losses_by_day, trade_duration_minutes,
+    streak_analysis, pnl_frequency,
 )
 
 # ── Page config ──────────────────────────────────────────────────────────────
@@ -178,6 +180,16 @@ st.plotly_chart(
 
 st.plotly_chart(
     plot_trade_duration(trade_duration_minutes(df_trades)),
+    use_container_width=True, config={"displayModeBar": True},
+)
+
+st.plotly_chart(
+    plot_streaks(streak_analysis(df_trades)),
+    use_container_width=True, config={"displayModeBar": True},
+)
+
+st.plotly_chart(
+    plot_pnl_frequency(pnl_frequency(df_trades)),
     use_container_width=True, config={"displayModeBar": True},
 )
 
