@@ -12,7 +12,7 @@ from utils.charts import (
     plot_drawdown_abs, plot_drawdown_pct, plot_equity_curve,
     plot_pnl_by_weekday, plot_pnl_by_hour, plot_long_vs_short,
     plot_wins_losses_by_day, plot_trade_duration, plot_monthly_heatmap,
-    plot_streaks,
+    plot_streaks, plot_streak_frequency,
 )
 from utils.metrics import calculate_metrics, calculate_advanced_metrics, monthly_performance
 from utils.strategy import run_backtest
@@ -199,6 +199,11 @@ with col_w:
 with col_l:
     st.markdown("Rachas **Perdedoras** (Loss)")
     st.dataframe(df_losses.style.format(_fmt_freq), use_container_width=True, hide_index=True)
+
+st.plotly_chart(
+    plot_streak_frequency(df_wins, df_losses),
+    use_container_width=True, config={"displayModeBar": True},
+)
 
 st.divider()
 

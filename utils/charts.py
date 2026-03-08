@@ -295,6 +295,53 @@ def plot_streaks(df_streaks: pd.DataFrame) -> go.Figure:
     return fig
 
 
+def plot_streak_frequency(df_wins: pd.DataFrame, df_losses: pd.DataFrame) -> go.Figure:
+    """Side-by-side bar charts of streak length frequency for wins and losses."""
+    fig = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=("Rachas Ganadoras (Win)", "Rachas Perdedoras (Loss)"),
+    )
+
+    fig.add_trace(go.Bar(
+        x=df_wins["Longitud Racha"],
+        y=df_wins["Frec. Relativa (%)"],
+        marker_color=COLOR_GREEN,
+        name="Win",
+        customdata=list(zip(df_wins["N° Rachas"], df_wins["Frec. Acumulada (%)"])),
+        hovertemplate=(
+            "<b>Longitud %{x}</b><br>"
+            "N° Rachas: %{customdata[0]}<br>"
+            "Frec. Relativa: %{y:.2f}%<br>"
+            "Frec. Acumulada: %{customdata[1]:.2f}%<extra></extra>"
+        ),
+    ), row=1, col=1)
+
+    fig.add_trace(go.Bar(
+        x=df_losses["Longitud Racha"],
+        y=df_losses["Frec. Relativa (%)"],
+        marker_color=COLOR_RED,
+        name="Loss",
+        customdata=list(zip(df_losses["N° Rachas"], df_losses["Frec. Acumulada (%)"])),
+        hovertemplate=(
+            "<b>Longitud %{x}</b><br>"
+            "N° Rachas: %{customdata[0]}<br>"
+            "Frec. Relativa: %{y:.2f}%<br>"
+            "Frec. Acumulada: %{customdata[1]:.2f}%<extra></extra>"
+        ),
+    ), row=1, col=2)
+
+    fig.update_xaxes(title_text="Trades consecutivos", dtick=1)
+    fig.update_yaxes(title_text="Frecuencia relativa (%)", row=1, col=1)
+    fig.update_yaxes(title_text="Frecuencia relativa (%)", row=1, col=2)
+    fig.update_layout(
+        title="Frecuencia de Rachas por Longitud",
+        template="plotly_dark",
+        showlegend=False,
+        margin=dict(t=60, b=50),
+    )
+    return fig
+
+
 def plot_pnl_frequency(pnl: pd.Series) -> go.Figure:
     """Two-panel chart: P&L histogram (relative %) + cumulative distribution (CDF)."""
     fig = make_subplots(
