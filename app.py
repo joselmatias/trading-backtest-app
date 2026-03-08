@@ -8,7 +8,7 @@ import os
 import pandas as pd
 import streamlit as st
 
-from utils.data_loader import calculate_indicators, load_csv, calcular_pip_value_usdchf
+from utils.data_loader import calculate_indicators, load_csv
 from utils.charts import (
     plot_drawdown_abs, plot_drawdown_pct, plot_equity_curve,
     plot_pnl_by_weekday, plot_pnl_by_hour, plot_long_vs_short,
@@ -61,7 +61,7 @@ PARAMS_PAR = {
     },
     "USDCHF": {
         "pip_size":  0.0001,
-        "pip_value": None,    # Dinámico — calculado desde el CSV
+        "pip_value": 10.0,    # USD por pip por lote estándar (igual que EURUSD)
         "comision":  2.50,
         "sl_pips":   20,
         "tp_pips":   100,
@@ -134,12 +134,9 @@ if modulo == "📊 Backtest":
 
     # ── Params (pip value dinámico para USDCHF) ───────────────────────────────
     params = PARAMS_PAR[par].copy()
-
-    if par == "USDCHF":
-        params["pip_value"] = calcular_pip_value_usdchf(df_raw, params["lote"])
-    else:
-        # Convertir pip_value por lote estándar a valor efectivo por posición
-        params["pip_value"] = round(params["pip_value"] * params["lote"], 4)
+    # Convertir pip_value por lote estándar a valor efectivo por posición
+    # EURUSD y USDCHF usan la misma fórmula: pip_value_lote × lote = 10.0 × 0.25 = $2.50/pip
+    params["pip_value"] = round(params["pip_value"] * params["lote"], 4)
 
     with st.sidebar:
         st.caption(

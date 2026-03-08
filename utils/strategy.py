@@ -11,7 +11,7 @@ def _candle_ok(
     pip_size: float,
 ) -> bool:
     """Return True if candle meets body/wick size requirements."""
-    body_min = 7 * pip_size
+    body_min = 9 * pip_size
     wick_max = 4 * pip_size
     body = abs(close_p - open_p)
     upper_wick = high_p - max(open_p, close_p)
