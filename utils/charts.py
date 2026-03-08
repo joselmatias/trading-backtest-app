@@ -55,12 +55,16 @@ def plot_equity_curve(df_trades: pd.DataFrame) -> go.Figure:
         hovertemplate="<b>%{x}</b><br>Capital: $%{y:,.2f}<extra></extra>",
     ), row=1, col=1)
 
-    fig.add_hline(
-        y=INITIAL_CAPITAL, line_dash="dot", line_color="gray",
-        annotation_text=f"Capital Inicial ${INITIAL_CAPITAL:,.0f}",
-        annotation_position="bottom right",
-        row=1, col=1,
-    )
+    # Línea capital inicial como trace (add_hline no soporta row= en todas las versiones)
+    fig.add_trace(go.Scatter(
+        x=[dates[0], dates[-1]],
+        y=[INITIAL_CAPITAL, INITIAL_CAPITAL],
+        mode="lines",
+        line=dict(color="gray", width=1, dash="dot"),
+        name=f"Capital Inicial ${INITIAL_CAPITAL:,.0f}",
+        hoverinfo="skip",
+        showlegend=False,
+    ), row=1, col=1)
 
     # ── Row 2: Drawdown % mini ─────────────────────────────────────────────────
     fig.add_trace(go.Scatter(
