@@ -82,6 +82,43 @@ def trade_duration_minutes(df_trades: pd.DataFrame) -> pd.Series:
     )
 
 
+INITIAL_CAPITAL = 5_000.0
+COMMISSION = 2.5
+
+
+@st.cache_data
+def equity_curve_data(df_trades: pd.DataFrame) -> pd.DataFrame:
+    """Returns the event table used to build the Equity Curve chart.
+
+    Columns: Fecha, Evento, Delta ($), Capital ($)
+    Multi-day trades produce two rows (commission at open, P&L at close).
+    Same-day trades produce one row at close.
+    """
+    events = []  # (datetime, label, delta)
+
+    for _, row in df_trades.iterrows():
+        is_multiday = row["Fecha Cierre"].date() > row["Fecha Apertura"].date()
+        if is_multiday:
+            events.append((row["Fecha Apertura"], "Comisión (apertura)", -COMMISSION))
+            gross = row["Beneficio"] + COMMISSION
+            label = "Ganancia (cierre)" if gross > 0 else "Pérdida (cierre)"
+            events.append((row["Fecha Cierre"], label, gross))
+        else:
+            label = "Ganancia" if row["Beneficio"] > 0 else "Pérdida"
+            events.append((row["Fecha Cierre"], label, row["Beneficio"]))
+
+    events.sort(key=lambda x: x[0])
+
+    rows = [{"Fecha": df_trades["Fecha Apertura"].min(), "Evento": "Capital Inicial",
+             "Delta ($)": 0.0, "Capital ($)": INITIAL_CAPITAL}]
+    capital = INITIAL_CAPITAL
+    for dt, label, delta in events:
+        capital = round(capital + delta, 2)
+        rows.append({"Fecha": dt, "Evento": label, "Delta ($)": delta, "Capital ($)": capital})
+
+    return pd.DataFrame(rows)
+
+
 @st.cache_data
 def streak_analysis(df_trades: pd.DataFrame) -> pd.DataFrame:
     """Consecutive win/loss streaks with length and cumulative P&L per streak."""
