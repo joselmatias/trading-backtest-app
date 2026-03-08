@@ -5,29 +5,22 @@ import streamlit as st
 from ta.volatility import BollingerBands
 from pathlib import Path
 
-# Registro de datasets disponibles: nombre_display → ruta CSV
-DATASETS: dict[str, Path] = {
-    "Seacrest Market": Path("data/seacrest_market/EURUSD_M15.csv"),
-    "Alpha":           Path("data/alpha/EURUSD_M15.csv"),
-    "Wemastertrade":   Path("data/wemastertrade/EURUSD__M15_202501020100_202603062345.csv"),
-}
-
 BB_WINDOW = 20
 BB_DEV = 2
 
 
 @st.cache_data
-def load_csv(dataset: str) -> pd.DataFrame | None:
+def load_csv(path: str) -> pd.DataFrame | None:
     """Load and preprocess OHLC CSV exported from MetaTrader.
 
     Args:
-        dataset: Nombre del dataset (debe existir en DATASETS).
+        path: Ruta relativa o absoluta al archivo CSV.
 
     Expects tab-separated columns: <DATE> <TIME> <OPEN> <HIGH> <LOW> <CLOSE> ...
     Returns DataFrame with DatetimeIndex and uppercase OHLC columns, or None on error.
     """
-    data_path = DATASETS.get(dataset)
-    if data_path is None or not data_path.exists():
+    data_path = Path(path)
+    if not data_path.exists():
         return None
     try:
         df = pd.read_csv(
@@ -65,3 +58,21 @@ def calculate_indicators(df: pd.DataFrame) -> pd.DataFrame:
     bb = BollingerBands(close=df["CLOSE"], window=BB_WINDOW, window_dev=BB_DEV)
     df["bb_bbm"] = bb.bollinger_mavg()
     return df.dropna(subset=["bb_bbm"])
+
+
+def calcular_pip_value_usdchf(df_ohlcv: pd.DataFrame, lote: float = 0.25) -> float:
+    """Calcula el pip value efectivo en USD para USDCHF al tamaño de lote dado.
+
+    El pip de USDCHF está denominado en CHF, por lo que se convierte a USD
+    dividiendo por el precio USDCHF promedio:
+        pip_value_usd = (0.0001 / precio_usdchf) × 100_000 × lote
+
+    Args:
+        df_ohlcv: DataFrame con columna CLOSE del par USDCHF.
+        lote:     Tamaño de lote (default 0.25).
+
+    Returns:
+        Pip value efectivo en USD (ya incluye el lote).
+    """
+    precio_promedio = df_ohlcv["CLOSE"].mean()
+    return round((0.0001 / precio_promedio) * 100_000 * lote, 4)

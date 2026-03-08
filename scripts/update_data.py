@@ -1,11 +1,15 @@
 """
-Concatena todos los CSVs de data/alpha/ en data/alpha/EURUSD_M15.csv.
+Combina CSVs de datos históricos de MT5 en un único archivo por carpeta.
 
 Uso:
     python scripts/update_data.py
 
-Ejecutar cada vez que agregues un nuevo CSV a data/alpha/.
-Los archivos fuente deben tener el patron EURUSD*_*_*.csv (exportacion MT5).
+Carpetas gestionadas:
+    data/alpha/      → data/alpha/EURUSD_M15.csv
+    data/bt_eurusd/  → data/bt_eurusd/EURUSD_M15.csv
+
+Ejecutar cada vez que agregues un nuevo CSV a cualquiera de esas carpetas.
+Los archivos fuente deben tener el patron EURUSD*_*_*.csv (exportación MT5).
 El archivo de salida EURUSD_M15.csv NO se usa como fuente (se excluye).
 """
 
@@ -13,27 +17,37 @@ from pathlib import Path
 import pandas as pd
 import sys
 
-SOURCE_DIR = Path("data/alpha")
-OUTPUT_FILE = SOURCE_DIR / "EURUSD_M15.csv"
+
+JOBS = [
+    {
+        "source_dir":  Path("data/alpha"),
+        "output_file": Path("data/alpha/EURUSD_M15.csv"),
+        "pattern":     "EURUSD*.csv",
+    },
+    {
+        "source_dir":  Path("data/bt_eurusd"),
+        "output_file": Path("data/bt_eurusd/EURUSD_M15.csv"),
+        "pattern":     "EURUSD*.csv",
+    },
+]
 
 
-def main() -> None:
-    # Toma todos los CSVs de la carpeta excepto el archivo de salida
+def merge(source_dir: Path, output_file: Path, pattern: str) -> None:
     csv_files = sorted(
-        f for f in SOURCE_DIR.glob("EURUSD*.csv")
-        if f.resolve() != OUTPUT_FILE.resolve()
+        f for f in source_dir.glob(pattern)
+        if f.resolve() != output_file.resolve()
     )
 
     if not csv_files:
-        print(f"ERROR: No se encontraron CSVs fuente en {SOURCE_DIR}/")
-        sys.exit(1)
+        print(f"  ERROR: No se encontraron CSVs fuente en {source_dir}/")
+        return
 
-    print(f"Archivos a combinar: {len(csv_files)}")
+    print(f"  Archivos a combinar: {len(csv_files)}")
     frames = []
     for f in csv_files:
         df = pd.read_csv(f, sep="\t", encoding="utf-8-sig")
         frames.append(df)
-        print(f"  {f.name}: {len(df):,} filas")
+        print(f"    {f.name}: {len(df):,} filas")
 
     combined = pd.concat(frames, ignore_index=True)
 
@@ -41,15 +55,18 @@ def main() -> None:
     combined.drop_duplicates(subset=["<DATE>", "<TIME>"], keep="last", inplace=True)
     combined.sort_values(["<DATE>", "<TIME>"], inplace=True)
     combined.reset_index(drop=True, inplace=True)
-
-    combined.to_csv(OUTPUT_FILE, sep="\t", index=False)
-
-    print(f"\nResultado guardado en: {OUTPUT_FILE}")
-    print(f"Total filas: {len(combined):,}")
+    combined.to_csv(output_file, sep="\t", index=False)
 
     first = combined["<DATE>"].iloc[0]
-    last = combined["<DATE>"].iloc[-1]
-    print(f"Rango: {first}  →  {last}")
+    last  = combined["<DATE>"].iloc[-1]
+    print(f"  → {output_file}  |  {len(combined):,} filas  |  {first} → {last}")
+
+
+def main() -> None:
+    for job in JOBS:
+        print(f"\n[{job['source_dir']}]")
+        merge(job["source_dir"], job["output_file"], job["pattern"])
+    print("\nListo.")
 
 
 if __name__ == "__main__":

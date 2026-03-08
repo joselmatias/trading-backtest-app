@@ -12,7 +12,7 @@ COLOR_RED = "#ff4444"
 COLOR_GREEN = "#00cc66"
 
 
-def plot_equity_curve(df_trades: pd.DataFrame) -> go.Figure:
+def plot_equity_curve(df_trades: pd.DataFrame, title: str = "Equity Curve") -> go.Figure:
     """Equity curve (top) + drawdown % mini chart (bottom), shared X axis."""
     events = []  # (datetime, capital_delta)
     for _, row in df_trades.iterrows():
@@ -78,7 +78,7 @@ def plot_equity_curve(df_trades: pd.DataFrame) -> go.Figure:
     ), row=2, col=1)
 
     fig.update_layout(
-        title="Equity Curve",
+        title=title,
         hovermode="x unified",
         template="plotly_dark",
         showlegend=False,

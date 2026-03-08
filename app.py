@@ -1,13 +1,14 @@
-"""Trading Backtest Analyzer - EURUSD M15
+"""Trading Backtest Analyzer - EURUSD / USDCHF M15
 
 Streamlit UI layer — layout and display only.
 All business logic lives in utils/.
 """
 
+import os
 import pandas as pd
 import streamlit as st
 
-from utils.data_loader import DATASETS, calculate_indicators, load_csv
+from utils.data_loader import calculate_indicators, load_csv, calcular_pip_value_usdchf
 from utils.charts import (
     plot_drawdown_abs, plot_drawdown_pct, plot_equity_curve,
     plot_pnl_by_weekday, plot_pnl_by_hour, plot_long_vs_short,
@@ -36,6 +37,39 @@ st.set_page_config(
 st.title("📊 TRADING BACKTEST ANALYZER — EURUSD M15")
 st.divider()
 
+# ── Datasets & params ─────────────────────────────────────────────────────────
+FUENTES_DATOS = {
+    "EURUSD": {
+        "Alpha":           "data/alpha/EURUSD_M15.csv",
+        "Seacrest Market": "data/seacrest_market/EURUSD_M15.csv",
+        "BT":              "data/bt_eurusd/EURUSD_M15.csv",
+    },
+    "USDCHF": {
+        "WeMasterTrade":   "data/wemastertrade/USDCHF__M15_202501020100_202603062345.csv",
+    },
+}
+
+PARAMS_PAR = {
+    "EURUSD": {
+        "pip_size":  0.0001,
+        "pip_value": 10.0,    # USD por pip por lote estándar
+        "comision":  2.50,
+        "sl_pips":   20,
+        "tp_pips":   100,
+        "lote":      0.25,
+        "decimales": 5,
+    },
+    "USDCHF": {
+        "pip_size":  0.0001,
+        "pip_value": None,    # Dinámico — calculado desde el CSV
+        "comision":  2.50,
+        "sl_pips":   20,
+        "tp_pips":   100,
+        "lote":      0.25,
+        "decimales": 5,
+    },
+}
+
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.header("⚙️ Configuración")
@@ -52,20 +86,42 @@ with st.sidebar:
 if modulo == "📊 Backtest":
 
     with st.sidebar:
-        dataset = st.radio(
-            "Selecciona dataset:",
-            options=list(DATASETS.keys()),
-            index=0,
+        st.markdown("**📌 Par**")
+        par = st.radio(
+            "",
+            options=list(FUENTES_DATOS.keys()),
+            key="par_selector",
+            label_visibility="collapsed",
         )
-        st.caption(f"📁 `{DATASETS[dataset]}`")
+
+        st.markdown("**🏦 Broker**")
+        broker = st.radio(
+            "",
+            options=list(FUENTES_DATOS[par].keys()),
+            key="broker_selector",
+            label_visibility="collapsed",
+        )
+
+        archivo = FUENTES_DATOS[par][broker]
+        st.markdown(f"`{archivo}`")
+
+    # ── File validation ───────────────────────────────────────────────────────
+    if not os.path.exists(archivo):
+        st.sidebar.error("⚠️ Archivo no encontrado")
+        st.warning(
+            f"No se encontró el archivo:\n\n"
+            f"`{archivo}`\n\n"
+            f"Coloca el CSV en esa ruta y recarga la app."
+        )
+        st.stop()
 
     # ── Load & validate data ──────────────────────────────────────────────────
-    df_raw = load_csv(dataset)
+    df_raw = load_csv(archivo)
 
     if df_raw is None:
         st.error(
-            f"Archivo no encontrado: `{DATASETS[dataset]}`  \n"
-            "Asegúrate de que el CSV existe y tiene columnas: "
+            f"Error al leer: `{archivo}`  \n"
+            "Asegúrate de que el CSV tiene columnas: "
             "`<DATE>  <TIME>  <OPEN>  <HIGH>  <LOW>  <CLOSE>`"
         )
         st.stop()
@@ -76,9 +132,27 @@ if modulo == "📊 Backtest":
         st.warning("El DataFrame quedó vacío tras calcular los indicadores.")
         st.stop()
 
+    # ── Params (pip value dinámico para USDCHF) ───────────────────────────────
+    params = PARAMS_PAR[par].copy()
+
+    if par == "USDCHF":
+        params["pip_value"] = calcular_pip_value_usdchf(df_raw, params["lote"])
+    else:
+        # Convertir pip_value por lote estándar a valor efectivo por posición
+        params["pip_value"] = round(params["pip_value"] * params["lote"], 4)
+
+    with st.sidebar:
+        st.caption(
+            f"Pip value: ${params['pip_value']:.4f} | "
+            f"SL: {params['sl_pips']}p | TP: {params['tp_pips']}p | "
+            f"Lote: {params['lote']}"
+        )
+
     # ── Run backtest ──────────────────────────────────────────────────────────
+    titulo = f"{par} M15 — Bollinger Bands | {broker}"
+
     with st.spinner("Ejecutando backtest…"):
-        df_trades = run_backtest(df)
+        df_trades = run_backtest(df, params)
 
     if df_trades.empty:
         st.warning(
@@ -120,7 +194,7 @@ if modulo == "📊 Backtest":
     # ── Equity Curve ──────────────────────────────────────────────────────────
     st.subheader("📈 Equity Curve")
     st.plotly_chart(
-        plot_equity_curve(df_trades),
+        plot_equity_curve(df_trades, title=titulo),
         use_container_width=True,
         config={"displayModeBar": True},
     )
