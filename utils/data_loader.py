@@ -9,6 +9,7 @@ from pathlib import Path
 DATASETS: dict[str, Path] = {
     "Seacrest Market": Path("data/seacrest_market/EURUSD_M15.csv"),
     "Alpha":           Path("data/alpha/EURUSD_M15.csv"),
+    "Wemastertrade":   Path("data/wemastertrade/EURUSD__M15_202501020100_202603062345.csv"),
 }
 
 BB_WINDOW = 20
