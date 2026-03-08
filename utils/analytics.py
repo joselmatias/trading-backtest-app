@@ -124,19 +124,6 @@ def streak_analysis(df_trades: pd.DataFrame) -> pd.DataFrame:
 
 
 @st.cache_data
-def pnl_frequency(df_trades: pd.DataFrame) -> pd.DataFrame:
-    """Relative and cumulative frequency distribution of trade P&L."""
-    pnl = df_trades["Beneficio"]
-    bins = pd.cut(pnl, bins=12)
-    freq = bins.value_counts().sort_index()
-    total = len(pnl)
-    rel_freq = (freq / total * 100).round(2)
-    cum_freq = rel_freq.cumsum().round(2)
-
-    return pd.DataFrame({
-        "bin_label": [f"${b.left:,.0f} → ${b.right:,.0f}" for b in freq.index],
-        "bin_mid":   [b.mid for b in freq.index],
-        "count":     freq.values,
-        "rel_freq":  rel_freq.values,
-        "cum_freq":  cum_freq.values,
-    })
+def pnl_frequency(df_trades: pd.DataFrame) -> pd.Series:
+    """Raw P&L series for frequency distribution and CDF analysis."""
+    return df_trades["Beneficio"].copy()

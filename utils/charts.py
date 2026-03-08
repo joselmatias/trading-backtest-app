@@ -1,5 +1,6 @@
 """Plotly chart builders for backtest visualization."""
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -294,41 +295,60 @@ def plot_streaks(df_streaks: pd.DataFrame) -> go.Figure:
     return fig
 
 
-def plot_pnl_frequency(df_freq: pd.DataFrame) -> go.Figure:
-    """Bar chart (relative frequency) + line (cumulative frequency) of P&L distribution."""
-    bar_colors = [COLOR_GREEN if m >= 0 else COLOR_RED for m in df_freq["bin_mid"]]
+def plot_pnl_frequency(pnl: pd.Series) -> go.Figure:
+    """Two-panel chart: P&L histogram (relative %) + cumulative distribution (CDF)."""
+    fig = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=("Distribución de P&L (Frecuencia Relativa)", "Frecuencia Acumulada (CDF)"),
+        column_widths=[0.55, 0.45],
+    )
 
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    # ── Left: histogram with auto bins ────────────────────────────────────────
+    counts, edges = np.histogram(pnl, bins=20)
+    mids = (edges[:-1] + edges[1:]) / 2
+    total = counts.sum()
+    rel = counts / total * 100
+    bar_w = (edges[1] - edges[0]) * 0.85
+    colors = [COLOR_GREEN if m >= 0 else COLOR_RED for m in mids]
 
     fig.add_trace(go.Bar(
-        x=df_freq["bin_label"],
-        y=df_freq["rel_freq"],
-        marker_color=bar_colors,
-        name="Frecuencia relativa (%)",
-        hovertemplate="<b>%{x}</b><br>Frecuencia: %{y:.1f}%<br>Trades: %{customdata}<extra></extra>",
-        customdata=df_freq["count"],
-    ), secondary_y=False)
+        x=mids, y=rel,
+        width=bar_w,
+        marker_color=colors,
+        name="Frecuencia relativa",
+        hovertemplate="P&L: $%{x:,.0f}<br>Frecuencia: %{y:.1f}%<br>Trades: %{customdata}<extra></extra>",
+        customdata=counts,
+    ), row=1, col=1)
+    fig.add_vline(x=0, line_dash="dot", line_color="gray", row=1, col=1)
+
+    # ── Right: CDF ────────────────────────────────────────────────────────────
+    sorted_pnl = np.sort(pnl.values)
+    cdf = np.arange(1, len(sorted_pnl) + 1) / len(sorted_pnl) * 100
 
     fig.add_trace(go.Scatter(
-        x=df_freq["bin_label"],
-        y=df_freq["cum_freq"],
-        mode="lines+markers",
+        x=sorted_pnl, y=cdf,
+        mode="lines",
         line=dict(color="orange", width=2),
-        marker=dict(size=6),
-        name="Frecuencia acumulada (%)",
-        hovertemplate="<b>%{x}</b><br>Acumulada: %{y:.1f}%<extra></extra>",
-    ), secondary_y=True)
+        name="CDF acumulada",
+        hovertemplate="P&L: $%{x:,.2f}<br>Acumulada: %{y:.1f}%<extra></extra>",
+        fill="tozeroy",
+        fillcolor="rgba(255,165,0,0.10)",
+    ), row=1, col=2)
+    fig.add_vline(x=0, line_dash="dot", line_color="gray", row=1, col=2)
+    fig.add_hline(y=50, line_dash="dash", line_color="gray",
+                  annotation_text="50%", annotation_position="right",
+                  row=1, col=2)
 
     fig.update_layout(
         title="Distribución de P&L — Frecuencia Relativa y Acumulada",
-        xaxis_title="Rango de P&L",
         template="plotly_dark",
-        margin=dict(t=50, b=80),
-        legend=dict(orientation="h", y=1.08),
-        xaxis_tickangle=-35,
+        margin=dict(t=60, b=50),
+        showlegend=False,
     )
-    fig.update_yaxes(title_text="Frecuencia relativa (%)", secondary_y=False)
-    fig.update_yaxes(title_text="Frecuencia acumulada (%)", secondary_y=True, range=[0, 105])
+    fig.update_xaxes(title_text="P&L ($)", row=1, col=1)
+    fig.update_xaxes(title_text="P&L ($)", row=1, col=2)
+    fig.update_yaxes(title_text="% de trades", row=1, col=1)
+    fig.update_yaxes(title_text="% acumulado", range=[0, 105], row=1, col=2)
     return fig
 
 
