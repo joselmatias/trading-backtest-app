@@ -103,7 +103,6 @@ if modulo == "📊 Backtest":
         )
 
         archivo = FUENTES_DATOS[par][broker]
-        st.markdown(f"`{archivo}`")
 
     # ── File validation ───────────────────────────────────────────────────────
     if not os.path.exists(archivo):
@@ -139,10 +138,28 @@ if modulo == "📊 Backtest":
     params["pip_value"] = round(params["pip_value"] * params["lote"], 4)
 
     with st.sidebar:
+        st.divider()
+        st.markdown("**📐 Parámetros de la Estrategia**")
         st.caption(
-            f"Pip value: ${params['pip_value']:.4f} | "
-            f"SL: {params['sl_pips']}p | TP: {params['tp_pips']}p | "
-            f"Lote: {params['lote']}"
+            f"**Gestión de riesgo**  \n"
+            f"Lote: {params['lote']} | Pip value: ${params['pip_value']:.2f}  \n"
+            f"SL: {params['sl_pips']} pips | TP: {params['tp_pips']} pips  \n"
+            f"Riesgo/op: ~${params['sl_pips'] * params['pip_value']:.2f} + comisión  \n"
+            f"\n"
+            f"**Filtro de vela**  \n"
+            f"Cuerpo mínimo: 9 pips  \n"
+            f"Mecha máx (sup/inf): 4 pips  \n"
+            f"\n"
+            f"**Bollinger Bands**  \n"
+            f"Período: 20 | Desviación: 2  \n"
+            f"\n"
+            f"**Señal de entrada**  \n"
+            f"BUY: vela alcista sobre banda media  \n"
+            f"SELL: vela bajista bajo banda media  \n"
+            f"Entrada: apertura de la vela siguiente  \n"
+            f"\n"
+            f"**Control diario**  \n"
+            f"Para operaciones tras 1ª pérdida del día"
         )
 
     # ── Run backtest ──────────────────────────────────────────────────────────
