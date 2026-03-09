@@ -51,22 +51,24 @@ FUENTES_DATOS = {
 
 PARAMS_PAR = {
     "EURUSD": {
-        "pip_size":  0.0001,
-        "pip_value": 10.0,    # USD por pip por lote estándar
-        "comision":  2.50,
-        "sl_pips":   20,
-        "tp_pips":   100,
-        "lote":      0.25,
-        "decimales": 5,
+        "pip_size":      0.0001,
+        "pip_value":     10.0,    # USD por pip por lote estándar
+        "comision":      2.50,
+        "sl_pips":       20,
+        "tp_pips":       100,
+        "lote":          0.25,
+        "decimales":     5,
+        "body_min_pips": 7,
     },
     "USDCHF": {
-        "pip_size":  0.0001,
-        "pip_value": 10.0,    # USD por pip por lote estándar (igual que EURUSD)
-        "comision":  2.50,
-        "sl_pips":   20,
-        "tp_pips":   100,
-        "lote":      0.25,
-        "decimales": 5,
+        "pip_size":      0.0001,
+        "pip_value":     10.0,    # USD por pip por lote estándar (igual que EURUSD)
+        "comision":      2.50,
+        "sl_pips":       20,
+        "tp_pips":       100,
+        "lote":          0.25,
+        "decimales":     5,
+        "body_min_pips": 9,
     },
 }
 
@@ -147,7 +149,7 @@ if modulo == "📊 Backtest":
             f"Riesgo/op: ~${params['sl_pips'] * params['pip_value']:.2f} + comisión  \n"
             f"\n"
             f"**Filtro de vela**  \n"
-            f"Cuerpo mínimo: 9 pips  \n"
+            f"Cuerpo mínimo: {params['body_min_pips']} pips  \n"
             f"Mecha máx (sup/inf): 4 pips  \n"
             f"\n"
             f"**Bollinger Bands**  \n"

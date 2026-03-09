@@ -9,9 +9,10 @@ INITIAL_CAPITAL = 5_000.0
 def _candle_ok(
     open_p: float, high_p: float, low_p: float, close_p: float,
     pip_size: float,
+    body_min_pips: int = 9,
 ) -> bool:
     """Return True if candle meets body/wick size requirements."""
-    body_min = 9 * pip_size
+    body_min = body_min_pips * pip_size
     wick_max = 4 * pip_size
     body = abs(close_p - open_p)
     upper_wick = high_p - max(open_p, close_p)
@@ -96,12 +97,13 @@ def run_backtest(df: pd.DataFrame, params: dict) -> pd.DataFrame:
     Returns:
         DataFrame with one row per trade and cumulative Capital column.
     """
-    sl_pips   = params["sl_pips"]
-    tp_pips   = params["tp_pips"]
-    pip_size  = params["pip_size"]
-    pip_value = params["pip_value"]
-    lote      = params["lote"]
-    comision  = params["comision"]
+    sl_pips        = params["sl_pips"]
+    tp_pips        = params["tp_pips"]
+    pip_size       = params["pip_size"]
+    pip_value      = params["pip_value"]
+    lote           = params["lote"]
+    comision       = params["comision"]
+    body_min_pips  = params.get("body_min_pips", 9)
 
     capital = INITIAL_CAPITAL
     results = []
@@ -130,7 +132,7 @@ def run_backtest(df: pd.DataFrame, params: dict) -> pd.DataFrame:
             continue
 
         # Filtro de vela
-        if not _candle_ok(row["OPEN"], row["HIGH"], row["LOW"], row["CLOSE"], pip_size):
+        if not _candle_ok(row["OPEN"], row["HIGH"], row["LOW"], row["CLOSE"], pip_size, body_min_pips):
             continue
 
         signal = _detect_signal(row)
