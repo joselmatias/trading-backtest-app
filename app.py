@@ -141,6 +141,26 @@ if modulo == "📊 Backtest":
     # EURUSD y USDCHF usan la misma fórmula: pip_value_lote × lote = 10.0 × 0.25 = $2.50/pip
     params["pip_value"] = round(params["pip_value"] * params["lote"], 4)
 
+    # ── Filtro de vela interactivo ─────────────────────────────────────────────
+    with st.expander("🕯️ Ajustar filtro de vela", expanded=False):
+        fc1, fc2 = st.columns(2)
+        with fc1:
+            params["body_min_pips"] = st.slider(
+                "Cuerpo mínimo (pips)",
+                min_value=1, max_value=20,
+                value=params["body_min_pips"],
+                step=1,
+                help="Tamaño mínimo del cuerpo de la vela señal en pips",
+            )
+        with fc2:
+            params["wick_max_pips"] = st.slider(
+                "Mecha máxima (pips)",
+                min_value=0, max_value=10,
+                value=params["wick_max_pips"],
+                step=1,
+                help="Tamaño máximo permitido de mecha superior e inferior en pips",
+            )
+
     with st.sidebar:
         st.divider()
         st.markdown("**📐 Parámetros de la Estrategia**")
@@ -152,7 +172,7 @@ if modulo == "📊 Backtest":
             f"\n"
             f"**Filtro de vela**  \n"
             f"Cuerpo mínimo: {params['body_min_pips']} pips  \n"
-            f"Mecha máx (sup/inf): 4 pips  \n"
+            f"Mecha máx (sup/inf): {params['wick_max_pips']} pips  \n"
             f"\n"
             f"**Bollinger Bands**  \n"
             f"Período: 20 | Desviación: 2  \n"
