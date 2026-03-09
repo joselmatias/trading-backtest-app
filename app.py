@@ -383,6 +383,7 @@ if modulo == "📊 Backtest":
     fmt: dict[str, str] = {col: "{:.5f}" for col in price_cols}
     fmt.update({col: "${:,.2f}" for col in money_cols})
     fmt["Volumen"] = "{:.2f}"
+    fmt["Cuerpo (pips)"] = "{:.1f}"
 
 
     def _color_pnl(val: float) -> str:

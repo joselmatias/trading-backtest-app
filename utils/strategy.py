@@ -157,10 +157,13 @@ def run_backtest(df: pd.DataFrame, params: dict) -> pd.DataFrame:
         pnl = _calc_pnl(signal, entry_price, close_info["price"], pip_size, pip_value, comision)
         capital += pnl
 
+        body_pips = round(abs(row["CLOSE"] - row["OPEN"]) / pip_size, 1)
+
         results.append({
             "Fecha Apertura": entry_time,
             "Tipo":           signal,
             "Volumen":        lote,
+            "Cuerpo (pips)":  body_pips,
             "Entrada":        entry_price,
             "S/L":            sl,
             "T/P":            tp,
