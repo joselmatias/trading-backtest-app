@@ -421,8 +421,10 @@ if modulo == "📊 Backtest":
     # ── Frecuencia por Cuerpo (pips) ───────────────────────────────────────────
     st.subheader("📊 Frecuencia por Tamaño de Vela")
     total_trades = len(df_trades)
+    df_freq_src = df_trades.copy()
+    df_freq_src["Cuerpo (pips)"] = df_freq_src["Cuerpo (pips)"].round().astype(int)
     freq = (
-        df_trades.groupby("Cuerpo (pips)", sort=True)
+        df_freq_src.groupby("Cuerpo (pips)", sort=True)
         .agg(
             Operaciones=("Beneficio", "count"),
             Ganadoras=("Beneficio", lambda x: (x > 0).sum()),
@@ -432,7 +434,6 @@ if modulo == "📊 Backtest":
         )
         .reset_index()
     )
-    freq["Cuerpo (pips)"] = freq["Cuerpo (pips)"].round().astype(int)
     freq.insert(1, "Frec. Relativa (%)", (freq["Operaciones"] / total_trades * 100).round(2))
     freq["Win Rate (%)"] = (freq["Ganadoras"] / freq["Operaciones"] * 100).round(1)
     freq = freq.rename(columns={
