@@ -42,7 +42,7 @@ FUENTES_DATOS = {
     "EURUSD": {
         "Alpha":           "data/alpha/EURUSD_M15.csv",
         "Seacrest Market": "data/seacrest_market/EURUSD_M15.csv",
-        "BT":              "data/bt_eurusd/EURUSD_M15.csv",
+        "WeMasterTrade":   "data/wemastertrade/EURUSD__M15_202501020100_202603062345.csv",
     },
     "USDCHF": {
         "WeMasterTrade":   "data/wemastertrade/USDCHF__M15_202501020100_202603062345.csv",
