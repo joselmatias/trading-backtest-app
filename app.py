@@ -75,7 +75,7 @@ with st.sidebar:
     st.header("⚙️ Configuración")
     modulo = st.radio(
         "Módulo:",
-        options=["📊 Backtest", "🔗 Correlaciones"],
+        options=["📊 Backtest", "📁 Portafolio WeMasterTrade", "🔗 Correlaciones"],
         index=0,
     )
     st.divider()
@@ -398,6 +398,330 @@ if modulo == "📊 Backtest":
                 return "color: #00cc66" if val > 0 else "color: #ff4444" if val < 0 else ""
             return ""
         st.dataframe(mp.style.map(_color_monthly).format("${:,.2f}"),
+                     use_container_width=True)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# MODULE: PORTAFOLIO WEMASTERTRADE
+# ═════════════════════════════════════════════════════════════════════════════
+elif modulo == "📁 Portafolio WeMasterTrade":
+
+    # Fuentes fijas WeMasterTrade para ambos pares
+    _PORT_FUENTES = {
+        "EURUSD": "data/wemastertrade/EURUSD__M15_202501020100_202603062345.csv",
+        "USDCHF": "data/wemastertrade/USDCHF__M15_202501020100_202603062345.csv",
+    }
+
+    # 0.5% de riesgo: lote 0.125 → pip_value efectivo = 10.0 × 0.125 = $1.25/pip
+    # SL 20 pips × $1.25 = $25 = 0.5% de $5,000
+    _PORT_PARAMS = {
+        "pip_size":  0.0001,
+        "pip_value": 1.25,
+        "comision":  2.50,
+        "sl_pips":   20,
+        "tp_pips":   100,
+        "lote":      0.125,
+        "decimales": 5,
+    }
+
+    with st.sidebar:
+        st.markdown("**📌 Pares**")
+        st.caption("• EURUSD — WeMasterTrade")
+        st.caption("• USDCHF — WeMasterTrade")
+        st.divider()
+        st.caption(
+            f"Riesgo: 0.5% / operación  \n"
+            f"Pip value: ${_PORT_PARAMS['pip_value']:.2f} | "
+            f"Lote: {_PORT_PARAMS['lote']}  \n"
+            f"SL: {_PORT_PARAMS['sl_pips']}p | TP: {_PORT_PARAMS['tp_pips']}p"
+        )
+
+    st.subheader("📁 Portafolio WeMasterTrade — EURUSD + USDCHF")
+
+    # ── Validar archivos ──────────────────────────────────────────────────────
+    archivos_faltantes = [p for p in _PORT_FUENTES.values() if not os.path.exists(p)]
+    if archivos_faltantes:
+        for f in archivos_faltantes:
+            st.error(f"Archivo no encontrado: `{f}`")
+        st.stop()
+
+    # ── Cargar y preparar datos ───────────────────────────────────────────────
+    with st.spinner("Ejecutando portafolio…"):
+        raw_eur = load_csv(_PORT_FUENTES["EURUSD"])
+        raw_chf = load_csv(_PORT_FUENTES["USDCHF"])
+
+        if raw_eur is None or raw_chf is None:
+            st.error("Error al leer uno de los CSVs. Verifica el formato de columnas.")
+            st.stop()
+
+        df_eur_ind = calculate_indicators(raw_eur)
+        df_chf_ind = calculate_indicators(raw_chf)
+
+        trades_eur = run_backtest(df_eur_ind, _PORT_PARAMS)
+        trades_chf = run_backtest(df_chf_ind, _PORT_PARAMS)
+
+    if trades_eur.empty and trades_chf.empty:
+        st.warning("El portafolio no generó operaciones.")
+        st.stop()
+
+    # ── Combinar trades cronológicamente ─────────────────────────────────────
+    from utils.strategy import INITIAL_CAPITAL as _CAP_INICIAL
+
+    def _combinar(df_a: pd.DataFrame, par_a: str,
+                  df_b: pd.DataFrame, par_b: str) -> pd.DataFrame:
+        dfa = df_a.copy(); dfa["Par"] = par_a
+        dfb = df_b.copy(); dfb["Par"] = par_b
+        combined = pd.concat([dfa, dfb]).sort_values("Fecha Cierre").reset_index(drop=True)
+        capital = _CAP_INICIAL
+        caps = []
+        for _, row in combined.iterrows():
+            capital = round(capital + row["Beneficio"], 2)
+            caps.append(capital)
+        combined["Capital"] = caps
+        return combined
+
+    df_port = _combinar(trades_eur, "EURUSD", trades_chf, "USDCHF")
+
+    # ── Métricas combinadas ───────────────────────────────────────────────────
+    m = calculate_metrics(df_port)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Capital Inicial", f"${m['capital_inicial']:,.2f}")
+    with col2:
+        delta_usd = m["capital_final"] - m["capital_inicial"]
+        st.metric("Capital Final", f"${m['capital_final']:,.2f}", delta=f"${delta_usd:+,.2f}")
+    with col3:
+        st.metric("Total Trades", m["total_trades"])
+
+    col4, col5, col6 = st.columns(3)
+    with col4:
+        st.metric("Win Rate", f"{m['win_rate']:.1f}%",
+                  delta=f"{m['win_trades']}W  /  {m['loss_trades']}L")
+    with col5:
+        st.metric("Max Drawdown $", f"-${m['max_drawdown_abs']:,.2f}")
+    with col6:
+        st.metric("Max Drawdown %", f"-{m['max_drawdown_pct']:.2f}%")
+
+    st.divider()
+
+    # ── Desglose por par ──────────────────────────────────────────────────────
+    st.subheader("📊 Desglose por Par")
+
+    def _resumen_par(df: pd.DataFrame, par: str) -> dict:
+        if df.empty:
+            return {"Par": par, "Trades": 0, "Wins": 0, "Losses": 0, "Win Rate": 0.0, "Total P&L": 0.0}
+        wins = int((df["Beneficio"] > 0).sum())
+        losses = int((df["Beneficio"] < 0).sum())
+        return {
+            "Par":       par,
+            "Trades":    len(df),
+            "Wins":      wins,
+            "Losses":    losses,
+            "Win Rate":  f"{wins / len(df) * 100:.1f}%",
+            "Total P&L": round(df["Beneficio"].sum(), 2),
+        }
+
+    df_resumen = pd.DataFrame([
+        _resumen_par(trades_eur, "EURUSD"),
+        _resumen_par(trades_chf, "USDCHF"),
+    ])
+    df_resumen.loc[len(df_resumen)] = {
+        "Par": "TOTAL",
+        "Trades": df_resumen["Trades"].sum(),
+        "Wins":   df_resumen["Wins"].sum(),
+        "Losses": df_resumen["Losses"].sum(),
+        "Win Rate": f"{m['win_rate']:.1f}%",
+        "Total P&L": round(df_port["Beneficio"].sum(), 2),
+    }
+
+    def _color_pnl_port(val):
+        if isinstance(val, (int, float)):
+            return "color: #00cc66" if val > 0 else "color: #ff4444" if val < 0 else ""
+        return ""
+
+    st.dataframe(
+        df_resumen.style.map(_color_pnl_port, subset=["Total P&L"]),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    st.divider()
+
+    # ── Equity Curve ──────────────────────────────────────────────────────────
+    st.subheader("📈 Equity Curve — Portafolio")
+    st.plotly_chart(
+        plot_equity_curve(df_port, title="Portafolio WeMasterTrade — EURUSD + USDCHF"),
+        use_container_width=True,
+        config={"displayModeBar": True},
+    )
+
+    df_eq_port = equity_curve_data(df_port)
+
+    def _color_equity_port(row):
+        if row["Evento"] == "Capital Inicial":
+            return ["color: #aaaaaa"] * len(row)
+        elif row["Evento"] == "Comisión (apertura)":
+            return ["color: #ffaa00"] * len(row)
+        elif "Ganancia" in row["Evento"]:
+            return ["color: #00cc66"] * len(row)
+        return ["color: #ff4444"] * len(row)
+
+    st.dataframe(
+        df_eq_port.style
+            .apply(_color_equity_port, axis=1)
+            .format({"Delta ($)": "${:+,.2f}", "Capital ($)": "${:,.2f}"}),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    st.divider()
+
+    # ── Drawdown ──────────────────────────────────────────────────────────────
+    st.subheader("📉 Drawdown Analysis")
+    col_dd1, col_dd2 = st.columns(2)
+    with col_dd1:
+        st.plotly_chart(plot_drawdown_abs(df_port),
+                        use_container_width=True, config={"displayModeBar": True})
+    with col_dd2:
+        st.plotly_chart(plot_drawdown_pct(df_port),
+                        use_container_width=True, config={"displayModeBar": True})
+
+    st.divider()
+
+    # ── Trade History ─────────────────────────────────────────────────────────
+    st.subheader("📋 Trade History — Portafolio")
+
+    price_cols_p = ["Entrada", "S/L", "T/P", "Cierre"]
+    money_cols_p = ["Beneficio", "Capital", "Comisión"]
+    fmt_p: dict[str, str] = {col: "{:.5f}" for col in price_cols_p}
+    fmt_p.update({col: "${:,.2f}" for col in money_cols_p})
+    fmt_p["Volumen"] = "{:.3f}"
+
+    def _color_pnl_p(val: float) -> str:
+        return "color: #00cc66" if val > 0 else "color: #ff4444"
+
+    st.dataframe(
+        df_port.style
+            .map(_color_pnl_p, subset=["Beneficio"])
+            .format(fmt_p),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    st.divider()
+
+    # ── Analytics ─────────────────────────────────────────────────────────────
+    st.subheader("📊 Analytics — Portafolio")
+
+    col_a1, col_a2 = st.columns(2)
+    with col_a1:
+        st.plotly_chart(plot_pnl_by_weekday(pnl_by_weekday(df_port)),
+                        use_container_width=True, config={"displayModeBar": True})
+    with col_a2:
+        st.plotly_chart(plot_pnl_by_hour(pnl_by_hour(df_port)),
+                        use_container_width=True, config={"displayModeBar": True})
+
+    st.plotly_chart(plot_long_vs_short(long_vs_short(df_port)),
+                    use_container_width=True, config={"displayModeBar": True})
+    st.plotly_chart(plot_wins_losses_by_day(wins_losses_by_day(df_port)),
+                    use_container_width=True, config={"displayModeBar": True})
+    st.plotly_chart(plot_trade_duration(trade_duration_minutes(df_port)),
+                    use_container_width=True, config={"displayModeBar": True})
+    st.plotly_chart(plot_streaks(streak_analysis(df_port)),
+                    use_container_width=True, config={"displayModeBar": True})
+
+    st.markdown("**Frecuencia de Rachas por Longitud**")
+    df_wins_p, df_losses_p = pnl_frequency(df_port)
+    _fmt_freq_p = {"Frec. Relativa (%)": "{:.2f}%", "Frec. Acumulada (%)": "{:.2f}%"}
+    col_wp, col_lp = st.columns(2)
+    with col_wp:
+        st.markdown("Rachas **Ganadoras** (Win)")
+        st.dataframe(df_wins_p.style.format(_fmt_freq_p), use_container_width=True, hide_index=True)
+    with col_lp:
+        st.markdown("Rachas **Perdedoras** (Loss)")
+        st.dataframe(df_losses_p.style.format(_fmt_freq_p), use_container_width=True, hide_index=True)
+    st.plotly_chart(plot_streak_frequency(df_wins_p, df_losses_p),
+                    use_container_width=True, config={"displayModeBar": True})
+
+    st.divider()
+
+    # ── Performance Report ────────────────────────────────────────────────────
+    st.subheader("📋 Performance Report — Portafolio")
+    adv_p = calculate_advanced_metrics(df_port)
+    mp_p  = monthly_performance(df_port)
+
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 Métricas", "📈 Stats", "🔢 Trades", "📅 Monthly P/L"])
+
+    with tab1:
+        c = st.columns(5)
+        c[0].metric("Total Profit",     f"${adv_p['total_profit']:,.2f}")
+        c[1].metric("# of Trades",      adv_p['n_trades'])
+        c[2].metric("Sharpe Ratio",     f"{adv_p['sharpe_ratio']:.2f}")
+        c[3].metric("Profit Factor",    f"{adv_p['profit_factor']:.2f}")
+        c[4].metric("Return/DD Ratio",  f"{adv_p['return_dd_ratio']:.2f}")
+        c = st.columns(5)
+        c[0].metric("Winning %",        f"{adv_p['winning_pct']:.1f}%")
+        c[1].metric("Profit in Pips",   f"{adv_p['profit_in_pips']:,.0f}")
+        c[2].metric("Drawdown $",       f"-${adv_p['max_dd_abs']:,.2f}")
+        c[3].metric("Drawdown %",       f"-{adv_p['max_dd_pct']:.2f}%")
+        c[4].metric("Daily Avg Profit", f"${adv_p['daily_avg_profit']:.2f}")
+        c = st.columns(5)
+        c[0].metric("Monthly Avg",      f"${adv_p['monthly_avg_profit']:,.2f}")
+        c[1].metric("Avg Trade",        f"${adv_p['avg_trade']:.2f}")
+        c[2].metric("Yearly Avg $",     f"${adv_p['yearly_avg_profit']:,.2f}")
+        c[3].metric("Yearly Avg %",     f"{adv_p['yearly_avg_pct']:.1f}%")
+        c[4].metric("Annual Max DD%",   f"-{adv_p['annual_max_dd_pct']:.2f}%")
+        c = st.columns(5)
+        c[0].metric("R Expectancy",     f"{adv_p['r_expectancy']:.3f}R")
+        c[1].metric("R Exp. Score",     f"{adv_p['r_expectancy_score']:.2f}")
+        c[2].metric("SQN",              f"{adv_p['sqn']:.2f} — {adv_p['sqn_label']}")
+        c[3].metric("CAGR",             f"{adv_p['cagr']:.1f}%")
+        c[4].metric("STR Quality",      adv_p['sqn_label'])
+
+    with tab2:
+        rows_p = [
+            ("Wins / Losses Ratio",  f"{adv_p['wins_losses_ratio']:.2f}"),
+            ("Payout Ratio",         f"{adv_p['payout_ratio']:.2f}"),
+            ("Avg # Bars in Trade",  f"{adv_p['avg_bars_trade']:.1f}"),
+            ("AHPR",                 f"{adv_p['ahpr']:.4f}%"),
+            ("Z-Score",              f"{adv_p['z_score']:.2f}"),
+            ("Z-Probability",        f"{adv_p['z_probability']:.1f}%"),
+            ("Expectancy",           f"${adv_p['expectancy']:.2f}"),
+            ("Deviation",            f"${adv_p['deviation']:.2f}"),
+            ("Exposure",             f"{adv_p['exposure_pct']:.1f}%"),
+            ("Stagnation in Days",   f"{adv_p['stagnation_days']}"),
+            ("Stagnation in %",      f"{adv_p['stagnation_pct']:.1f}%"),
+        ]
+        st.dataframe(pd.DataFrame(rows_p, columns=["Métrica", "Valor"]),
+                     hide_index=True, use_container_width=True)
+
+    with tab3:
+        rows_p = [
+            ("# of Wins",           adv_p['n_wins']),
+            ("# of Losses",         adv_p['n_losses']),
+            ("Gross Profit",        f"${adv_p['gross_profit']:,.2f}"),
+            ("Gross Loss",          f"${adv_p['gross_loss']:,.2f}"),
+            ("Average Win",         f"${adv_p['avg_win']:,.2f}"),
+            ("Average Loss",        f"${adv_p['avg_loss']:,.2f}"),
+            ("Largest Win",         f"${adv_p['largest_win']:,.2f}"),
+            ("Largest Loss",        f"${adv_p['largest_loss']:,.2f}"),
+            ("Max Consec. Wins",    adv_p['max_consec_wins']),
+            ("Max Consec. Losses",  adv_p['max_consec_losses']),
+            ("Avg Consec. Wins",    f"{adv_p['avg_consec_wins']:.1f}"),
+            ("Avg Consec. Losses",  f"{adv_p['avg_consec_losses']:.1f}"),
+        ]
+        st.dataframe(pd.DataFrame(rows_p, columns=["Métrica", "Valor"]),
+                     hide_index=True, use_container_width=True)
+
+    with tab4:
+        st.plotly_chart(plot_monthly_heatmap(mp_p),
+                        use_container_width=True, config={"displayModeBar": True})
+        def _color_mp(val):
+            if isinstance(val, (int, float)):
+                return "color: #00cc66" if val > 0 else "color: #ff4444" if val < 0 else ""
+            return ""
+        st.dataframe(mp_p.style.map(_color_mp).format("${:,.2f}"),
                      use_container_width=True)
 
 
