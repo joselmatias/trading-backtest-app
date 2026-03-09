@@ -203,6 +203,48 @@ if modulo == "📊 Backtest":
     with col6:
         st.metric("Max Drawdown %", f"-{m['max_drawdown_pct']:.2f}%")
 
+    # ── R:R Simulation Table ───────────────────────────────────────────────────
+    st.subheader("📊 Simulación R:R")
+    sl_p = params["sl_pips"]
+    max_rr = max(1, round(params["tp_pips"] / sl_p)) if sl_p > 0 else 5
+    rr_rows = []
+    for rr in range(1, max_rr + 1):
+        tp_p = sl_p * rr
+        p_rr = {**params, "tp_pips": tp_p}
+        df_rr = run_backtest(df, p_rr)
+        if df_rr.empty:
+            rr_rows.append({
+                "R:R": f"1:{rr}", "TP (pips)": tp_p,
+                "✅ Ganadoras": 0, "❌ Perdedoras": 0,
+                "🏆 Win Rate": "0.0%", "💰 Capital Final": "$5,000.00",
+                "📉 DD $": "$0.00", "📉 DD %": "0.00%",
+            })
+            continue
+        mr = calculate_metrics(df_rr)
+        rr_rows.append({
+            "R:R": f"1:{rr}",
+            "TP (pips)": tp_p,
+            "✅ Ganadoras": mr["win_trades"],
+            "❌ Perdedoras": mr["loss_trades"],
+            "🏆 Win Rate": f"{mr['win_rate']:.1f}%",
+            "💰 Capital Final": f"${mr['capital_final']:,.2f}",
+            "📉 DD $": f"-${mr['max_drawdown_abs']:,.2f}",
+            "📉 DD %": f"-{mr['max_drawdown_pct']:.2f}%",
+        })
+    df_rr_table = pd.DataFrame(rr_rows)
+    current_rr_label = f"1:{max_rr}"
+
+    def _highlight_rr(row):
+        if row["R:R"] == current_rr_label:
+            return ["background-color: #1a3a1a"] * len(row)
+        return [""] * len(row)
+
+    st.dataframe(
+        df_rr_table.style.apply(_highlight_rr, axis=1),
+        use_container_width=True,
+        hide_index=True,
+    )
+
     st.divider()
 
     # ── Equity Curve ──────────────────────────────────────────────────────────
