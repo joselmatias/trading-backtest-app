@@ -432,6 +432,7 @@ if modulo == "📊 Backtest":
         )
         .reset_index()
     )
+    freq["Cuerpo (pips)"] = freq["Cuerpo (pips)"].round().astype(int)
     freq.insert(1, "Frec. Relativa (%)", (freq["Operaciones"] / total_trades * 100).round(2))
     freq["Win Rate (%)"] = (freq["Ganadoras"] / freq["Operaciones"] * 100).round(1)
     freq = freq.rename(columns={
@@ -446,7 +447,6 @@ if modulo == "📊 Backtest":
         freq.style
             .map(_color_pnl_freq, subset=["P&L Total ($)", "P&L Promedio ($)"])
             .format({
-                "Cuerpo (pips)":    "{:.1f}",
                 "Frec. Relativa (%)": "{:.2f}%",
                 "Win Rate (%)":     "{:.1f}%",
                 "P&L Total ($)":    "${:,.2f}",
