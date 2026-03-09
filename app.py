@@ -418,6 +418,44 @@ if modulo == "📊 Backtest":
         hide_index=True,
     )
 
+    # ── Frecuencia por Cuerpo (pips) ───────────────────────────────────────────
+    st.subheader("📊 Frecuencia por Tamaño de Vela")
+    total_trades = len(df_trades)
+    freq = (
+        df_trades.groupby("Cuerpo (pips)", sort=True)
+        .agg(
+            Operaciones=("Beneficio", "count"),
+            Ganadoras=("Beneficio", lambda x: (x > 0).sum()),
+            Perdedoras=("Beneficio", lambda x: (x <= 0).sum()),
+            Beneficio_Total=("Beneficio", "sum"),
+            Beneficio_Promedio=("Beneficio", "mean"),
+        )
+        .reset_index()
+    )
+    freq.insert(1, "Frec. Relativa (%)", (freq["Operaciones"] / total_trades * 100).round(2))
+    freq["Win Rate (%)"] = (freq["Ganadoras"] / freq["Operaciones"] * 100).round(1)
+    freq = freq.rename(columns={
+        "Beneficio_Total":   "P&L Total ($)",
+        "Beneficio_Promedio": "P&L Promedio ($)",
+    })
+
+    def _color_pnl_freq(val: float) -> str:
+        return "color: #00cc66" if val > 0 else "color: #ff4444" if val < 0 else ""
+
+    st.dataframe(
+        freq.style
+            .map(_color_pnl_freq, subset=["P&L Total ($)", "P&L Promedio ($)"])
+            .format({
+                "Cuerpo (pips)":    "{:.1f}",
+                "Frec. Relativa (%)": "{:.2f}%",
+                "Win Rate (%)":     "{:.1f}%",
+                "P&L Total ($)":    "${:,.2f}",
+                "P&L Promedio ($)": "${:,.2f}",
+            }),
+        use_container_width=True,
+        hide_index=True,
+    )
+
     st.divider()
 
     # ── Analytics ─────────────────────────────────────────────────────────────
