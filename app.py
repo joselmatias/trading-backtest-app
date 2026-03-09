@@ -59,6 +59,7 @@ PARAMS_PAR = {
         "lote":          0.25,
         "decimales":     5,
         "body_min_pips": 7,
+        "wick_max_pips": 4,
     },
     "USDCHF": {
         "pip_size":      0.0001,
@@ -69,6 +70,7 @@ PARAMS_PAR = {
         "lote":          0.25,
         "decimales":     5,
         "body_min_pips": 9,
+        "wick_max_pips": 4,
     },
 }
 
@@ -204,6 +206,78 @@ if modulo == "📊 Backtest":
         st.metric("Max Drawdown $", f"-${m['max_drawdown_abs']:,.2f}")
     with col6:
         st.metric("Max Drawdown %", f"-{m['max_drawdown_pct']:.2f}%")
+
+    # ── Candle Filter Simulation Tables ───────────────────────────────────────
+    st.subheader("🕯️ Simulación Filtro de Vela")
+
+    def _sim_row(p_sim: dict) -> dict:
+        df_s = run_backtest(df, p_sim)
+        if df_s.empty:
+            return {
+                "✅ Ganadoras": 0, "❌ Perdedoras": 0,
+                "🏆 Win Rate": "0.0%", "💰 Capital Final": "$5,000.00",
+                "📉 DD $": "$0.00", "📉 DD %": "0.00%",
+            }
+        ms = calculate_metrics(df_s)
+        return {
+            "✅ Ganadoras": ms["win_trades"],
+            "❌ Perdedoras": ms["loss_trades"],
+            "🏆 Win Rate": f"{ms['win_rate']:.1f}%",
+            "💰 Capital Final": f"${ms['capital_final']:,.2f}",
+            "📉 DD $": f"-${ms['max_drawdown_abs']:,.2f}",
+            "📉 DD %": f"-{ms['max_drawdown_pct']:.2f}%",
+        }
+
+    cur_body = params["body_min_pips"]
+    cur_wick = params["wick_max_pips"]
+
+    col_body, col_wick = st.columns(2)
+
+    with col_body:
+        st.markdown("**Cuerpo mínimo** (mecha fija en actual)")
+        body_rows = []
+        for b in range(3, 11):
+            p_b = {**params, "body_min_pips": b}
+            row_b = {"Cuerpo (pips)": b, **_sim_row(p_b)}
+            body_rows.append(row_b)
+        df_body = pd.DataFrame(body_rows)
+
+        def _hl_body(row):
+            return (
+                ["background-color: #1a3a1a"] * len(row)
+                if row["Cuerpo (pips)"] == cur_body
+                else [""] * len(row)
+            )
+
+        st.dataframe(
+            df_body.style.apply(_hl_body, axis=1),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    with col_wick:
+        st.markdown("**Mecha máxima** (cuerpo fijo en actual)")
+        wick_rows = []
+        for w in range(0, 6):
+            p_w = {**params, "wick_max_pips": w}
+            row_w = {"Mecha (pips)": w, **_sim_row(p_w)}
+            wick_rows.append(row_w)
+        df_wick = pd.DataFrame(wick_rows)
+
+        def _hl_wick(row):
+            return (
+                ["background-color: #1a3a1a"] * len(row)
+                if row["Mecha (pips)"] == cur_wick
+                else [""] * len(row)
+            )
+
+        st.dataframe(
+            df_wick.style.apply(_hl_wick, axis=1),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    st.divider()
 
     # ── R:R Simulation Table ───────────────────────────────────────────────────
     st.subheader("📊 Simulación R:R")

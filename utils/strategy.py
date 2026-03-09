@@ -10,10 +10,11 @@ def _candle_ok(
     open_p: float, high_p: float, low_p: float, close_p: float,
     pip_size: float,
     body_min_pips: int = 9,
+    wick_max_pips: int = 4,
 ) -> bool:
     """Return True if candle meets body/wick size requirements."""
     body_min = body_min_pips * pip_size
-    wick_max = 4 * pip_size
+    wick_max = wick_max_pips * pip_size
     body = abs(close_p - open_p)
     upper_wick = high_p - max(open_p, close_p)
     lower_wick = min(open_p, close_p) - low_p
@@ -104,6 +105,7 @@ def run_backtest(df: pd.DataFrame, params: dict) -> pd.DataFrame:
     lote           = params["lote"]
     comision       = params["comision"]
     body_min_pips  = params.get("body_min_pips", 9)
+    wick_max_pips  = params.get("wick_max_pips", 4)
 
     capital = INITIAL_CAPITAL
     results = []
@@ -132,7 +134,7 @@ def run_backtest(df: pd.DataFrame, params: dict) -> pd.DataFrame:
             continue
 
         # Filtro de vela
-        if not _candle_ok(row["OPEN"], row["HIGH"], row["LOW"], row["CLOSE"], pip_size, body_min_pips):
+        if not _candle_ok(row["OPEN"], row["HIGH"], row["LOW"], row["CLOSE"], pip_size, body_min_pips, wick_max_pips):
             continue
 
         signal = _detect_signal(row)
