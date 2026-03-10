@@ -466,6 +466,11 @@ if modulo == "📊 Backtest":
     # ── Trade History ─────────────────────────────────────────────────────────
     st.subheader("📋 Trade History")
 
+    # Ordenar por Fecha Cierre y recalcular Capital acumulado en ese orden
+    from utils.strategy import INITIAL_CAPITAL as _INIT_CAP
+    df_th = df_trades.sort_values("Fecha Cierre").copy()
+    df_th["Capital"] = _INIT_CAP + df_th["Beneficio"].cumsum()
+
     price_cols = ["Entrada", "S/L", "T/P", "Cierre"]
     money_cols = ["Beneficio", "Capital", "Comisión"]
 
@@ -480,7 +485,7 @@ if modulo == "📊 Backtest":
 
 
     st.dataframe(
-        df_trades.style
+        df_th.style
             .map(_color_pnl, subset=["Beneficio"])
             .format(fmt),
         use_container_width=True,
