@@ -26,7 +26,7 @@ from utils.correlaciones import (
     cargar_datos, alinear_retornos, resamplear_series, TIMEFRAMES,
     plot_heatmap, plot_rolling_corr, plot_scatter_retornos, tabla_descorrelacion,
 )
-from utils.prop_sim import simulate_prop
+from utils.prop_sim import simulate_prop, simulate_prop_strict
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -429,6 +429,69 @@ if modulo == "📊 Backtest":
             .apply(_color_sim_row, axis=1)
             .map(_color_rentabilidad, subset=["Rentabilidad (%)"])
             .format(fmt_sim),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    # ── Simulación Fondeo Estricta (sin trades con apertura solapada) ──────────
+    st.subheader("🏦 Simulación Fondeo — Sin Solapamiento")
+    st.caption(
+        "Igual que la tabla anterior, pero tras cada reseteo (breach o cambio de fase) "
+        "se descartan los trades cuya **Fecha Apertura** sea anterior o igual a la "
+        "**Fecha Cierre** del trade que causó el reseteo. "
+        "Refleja que la nueva cuenta se asigna una vez cerrada la operación anterior."
+    )
+
+    sim2, res2 = simulate_prop_strict(
+        df_th,
+        start_capital=5_000.0,
+        daily_loss=pf_daily,
+        overall_loss=pf_overall,
+        target_step1=pf_target1,
+        target_step2=pf_target2,
+        min_win_trades=int(pf_min_wins),
+        withdraw_pct_live=pf_withdraw,
+        fee_per_trial=pf_fee,
+        benef_col="Beneficio",
+        fecha_cierre_col="Fecha Cierre",
+        fecha_apertura_col="Fecha Apertura",
+    )
+
+    pm2_1, pm2_2, pm2_3, pm2_4, pm2_5, pm2_6 = st.columns(6)
+    pm2_1.metric("Ciclos totales",   res2["ciclos_totales"])
+    pm2_2.metric("Reinicios",        res2["reinicios"])
+    pm2_3.metric("Saltados",         res2["trades_saltados"])
+    pm2_4.metric("Total retirado",   f"${res2['total_retirado']:,.2f}")
+    pm2_5.metric("ROI neto",         f"${res2['roi_neto']:,.2f}",
+                 delta=f"{res2['roi_pct']:.1f}%" if not pd.isna(res2['roi_pct']) else None)
+    pm2_6.metric("ROI / mes",
+                 f"${res2['roi_por_mes']:,.2f}" if not pd.isna(res2['roi_por_mes']) else "—")
+
+    sim2["Rentabilidad (%)"] = sim2["Capital Después"].apply(
+        lambda x: ((x / 5_000.0) - 1) * 100 if pd.notna(x) else None
+    )
+
+    def _color_sim2_row(row):
+        note = str(row["Estado"])
+        if "Breach" in note or "🔴" in note:
+            return ["background-color: #3a1a1a"] * len(row)
+        if "Fase 1 superada" in note or "Fase 2 superada" in note:
+            return ["background-color: #1a3a2a"] * len(row)
+        if "💸" in note:
+            return ["background-color: #1a2a3a"] * len(row)
+        if "⏭️" in note:
+            return ["background-color: #2a2a10"] * len(row)
+        return [""] * len(row)
+
+    money_sim2 = ["Capital Antes", "Beneficio", "Capital Después", "Retiro", "Capital Sig. Op."]
+    fmt_sim2   = {c: "${:,.2f}" for c in money_sim2}
+    fmt_sim2["Rentabilidad (%)"] = "{:+.2f}%"
+
+    st.dataframe(
+        sim2.style
+            .apply(_color_sim2_row, axis=1)
+            .map(_color_rentabilidad, subset=["Rentabilidad (%)"])
+            .format(fmt_sim2, na_rep="—"),
         use_container_width=True,
         hide_index=True,
     )
