@@ -359,27 +359,6 @@ if modulo == "📊 Backtest":
 
     df_eq = equity_curve_data(df_trades)
 
-
-    def _color_equity_row(row):
-        if row["Evento"] == "Capital Inicial":
-            color = "color: #aaaaaa"
-        elif row["Evento"] == "Comisión (apertura)":
-            color = "color: #ffaa00"
-        elif "Ganancia" in row["Evento"]:
-            color = "color: #00cc66"
-        else:
-            color = "color: #ff4444"
-        return [color] * len(row)
-
-
-    st.dataframe(
-        df_eq.style
-            .apply(_color_equity_row, axis=1)
-            .format({"Delta ($)": "${:+,.2f}", "Capital ($)": "${:,.2f}"}),
-        use_container_width=True,
-        hide_index=True,
-    )
-
     # ── Simulación Fondeo (Prop Firm) ──────────────────────────────────────────
     st.subheader("🏦 Simulación Fondeo (Prop Firm)")
 
