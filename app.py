@@ -375,12 +375,8 @@ if modulo == "📊 Backtest":
         with pf3:
             pf_withdraw   = st.slider("Umbral retiro live (%)", 1, 20, 3) / 100
 
-    # Usar df_eq como fuente: cada fila es un evento (comisión o resultado)
-    # Se excluye la fila de "Capital Inicial" ya que es el punto de partida
-    df_eq_sim = df_eq[df_eq["Evento"] != "Capital Inicial"].copy()
-
     sim, res = simulate_prop(
-        df_eq_sim,
+        df_th,
         start_capital=5_000.0,
         daily_loss=pf_daily,
         overall_loss=pf_overall,
@@ -389,8 +385,8 @@ if modulo == "📊 Backtest":
         min_win_trades=int(pf_min_wins),
         withdraw_pct_live=pf_withdraw,
         fee_per_trial=pf_fee,
-        benef_col="Delta ($)",
-        fecha_col="Fecha",
+        benef_col="Beneficio",
+        fecha_col="Fecha Cierre",
     )
 
     # Métricas resumen
@@ -416,7 +412,7 @@ if modulo == "📊 Backtest":
             return ["background-color: #1a2a3a"] * len(row)
         return [""] * len(row)
 
-    money_sim = ["Capital Antes", "Delta ($)", "Capital Después", "Retiro", "Capital Sig. Op."]
+    money_sim = ["Capital Antes", "Beneficio", "Capital Después", "Retiro", "Capital Sig. Op."]
     fmt_sim   = {c: "${:,.2f}" for c in money_sim}
 
     st.dataframe(
