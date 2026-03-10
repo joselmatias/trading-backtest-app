@@ -26,6 +26,7 @@ from utils.correlaciones import (
     cargar_datos, alinear_retornos, resamplear_series, TIMEFRAMES,
     plot_heatmap, plot_rolling_corr, plot_scatter_retornos, tabla_descorrelacion,
 )
+from utils.prop_sim import simulate_prop
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -370,6 +371,68 @@ if modulo == "📊 Backtest":
         df_eq.style
             .apply(_color_equity_row, axis=1)
             .format({"Delta ($)": "${:+,.2f}", "Capital ($)": "${:,.2f}"}),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    # ── Simulación Fondeo (Prop Firm) ──────────────────────────────────────────
+    st.subheader("🏦 Simulación Fondeo (Prop Firm)")
+
+    with st.expander("⚙️ Parámetros de la prueba", expanded=False):
+        pf1, pf2, pf3 = st.columns(3)
+        with pf1:
+            pf_fee        = st.number_input("Costo por prueba ($)", min_value=1.0, value=50.0, step=5.0)
+            pf_daily      = st.slider("DD diario máx (%)", 1, 10, 5) / 100
+            pf_overall    = st.slider("DD total máx (%)",  1, 20, 8) / 100
+        with pf2:
+            pf_target1    = st.slider("Objetivo Fase 1 (%)", 1, 20, 8)  / 100
+            pf_target2    = st.slider("Objetivo Fase 2 (%)", 1, 20, 5)  / 100
+            pf_min_wins   = st.number_input("Mín. trades ganadores/fase", min_value=1, value=3, step=1)
+        with pf3:
+            pf_withdraw   = st.slider("Umbral retiro live (%)", 1, 20, 3) / 100
+
+    sim, res = simulate_prop(
+        df_trades,
+        start_capital=5_000.0,
+        daily_loss=pf_daily,
+        overall_loss=pf_overall,
+        target_step1=pf_target1,
+        target_step2=pf_target2,
+        min_win_trades=int(pf_min_wins),
+        withdraw_pct_live=pf_withdraw,
+        fee_per_trial=pf_fee,
+    )
+
+    # Métricas resumen
+    pm1, pm2, pm3, pm4, pm5 = st.columns(5)
+    pm1.metric("Ciclos totales",    res["ciclos_totales"])
+    pm2.metric("Reinicios",         res["reinicios"],
+               delta=("Sin breach" if res["reinicios"] == 0 else None),
+               delta_color="normal")
+    pm3.metric("Total retirado",    f"${res['total_retirado']:,.2f}")
+    pm4.metric("ROI neto",          f"${res['roi_neto']:,.2f}",
+               delta=f"{res['roi_pct']:.1f}%" if not pd.isna(res['roi_pct']) else None)
+    pm5.metric("ROI / mes",
+               f"${res['roi_por_mes']:,.2f}" if not pd.isna(res['roi_por_mes']) else "—")
+
+    # Tabla de simulación
+    def _color_sim_row(row):
+        note = str(row["Estado"])
+        if "Breach" in note or "🔴" in note:
+            return ["background-color: #3a1a1a"] * len(row)
+        if "Fase 1 superada" in note or "Fase 2 superada" in note:
+            return ["background-color: #1a3a2a"] * len(row)
+        if "Retiro" in note or "💸" in note:
+            return ["background-color: #1a2a3a"] * len(row)
+        return [""] * len(row)
+
+    money_sim = ["Capital Antes", "Beneficio", "Capital Después", "Retiro", "Capital Sig. Op."]
+    fmt_sim   = {c: "${:,.2f}" for c in money_sim}
+
+    st.dataframe(
+        sim.style
+            .apply(_color_sim_row, axis=1)
+            .format(fmt_sim),
         use_container_width=True,
         hide_index=True,
     )
