@@ -412,12 +412,19 @@ if modulo == "📊 Backtest":
             return ["background-color: #1a2a3a"] * len(row)
         return [""] * len(row)
 
+    sim["Rentabilidad (%)"] = ((sim["Capital Después"] / 5_000.0) - 1) * 100
+
     money_sim = ["Capital Antes", "Beneficio", "Capital Después", "Retiro", "Capital Sig. Op."]
     fmt_sim   = {c: "${:,.2f}" for c in money_sim}
+    fmt_sim["Rentabilidad (%)"] = "{:+.2f}%"
+
+    def _color_rentabilidad(val: float) -> str:
+        return "color: #00cc66" if val > 0 else "color: #ff4444" if val < 0 else ""
 
     st.dataframe(
         sim.style
             .apply(_color_sim_row, axis=1)
+            .map(_color_rentabilidad, subset=["Rentabilidad (%)"])
             .format(fmt_sim),
         use_container_width=True,
         hide_index=True,
