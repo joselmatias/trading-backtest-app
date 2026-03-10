@@ -389,6 +389,9 @@ if modulo == "📊 Backtest":
         fecha_col="Fecha Cierre",
     )
 
+    # Insertar Fecha Apertura junto a Fecha Cierre
+    sim.insert(1, "Fecha Apertura", df_th["Fecha Apertura"].values)
+
     # Métricas resumen
     pm1, pm2, pm3, pm4, pm5 = st.columns(5)
     pm1.metric("Ciclos totales",    res["ciclos_totales"])
