@@ -53,13 +53,16 @@ def simulate_prop(
     Retorna:
         (sim DataFrame fila-por-trade, resumen dict con métricas globales)
     """
-    data = df[[benef_col, fecha_col]].copy()
+    evento_col = "Evento" if "Evento" in df.columns else None
+    cols_read  = [benef_col, fecha_col] + ([evento_col] if evento_col else [])
+    data = df[cols_read].copy()
     data[benef_col] = pd.to_numeric(data[benef_col], errors="coerce").fillna(0)
     data[fecha_col] = pd.to_datetime(data[fecha_col], errors="coerce")
     data = data.sort_values(fecha_col).reset_index(drop=True)
 
-    benef  = data[benef_col].to_numpy()
-    fechas = data[fecha_col]
+    benef   = data[benef_col].to_numpy()
+    fechas  = data[fecha_col]
+    eventos = data[evento_col].to_numpy() if evento_col else None
 
     rows = []
     ciclo               = 1
@@ -72,17 +75,18 @@ def simulate_prop(
     restarts_to_phase1  = 0
 
     for i in range(len(data)):
-        cb    = current_capital
-        p     = float(benef[i])
-        w     = 0.0
-        note  = ""
-        ca    = cb + p
+        cb      = current_capital
+        p       = float(benef[i])
+        w       = 0.0
+        note    = ""
+        ca      = cb + p
+        ev_lbl  = str(eventos[i]) if eventos is not None else ""
 
         if p > 0:
             wins_in_phase += 1
 
-        daily_breach   = p   < -daily_loss * phase_start_capital
-        overall_breach = ca  < overall_floor
+        daily_breach   = p  < -daily_loss * phase_start_capital
+        overall_breach = ca < overall_floor
 
         if daily_breach or overall_breach:
             parts = []
@@ -90,7 +94,7 @@ def simulate_prop(
             if overall_breach: parts.append(f"DD total  >{overall_loss*100:.0f}%")
             note = "🔴 Breach: " + " & ".join(parts) + " → reinicio Fase 1"
 
-            rows.append([fechas.iloc[i], ciclo, phase, cb, p, ca, w, start_capital, wins_in_phase, note])
+            rows.append([fechas.iloc[i], ev_lbl, ciclo, phase, cb, p, ca, w, start_capital, wins_in_phase, note])
 
             breach_happened     = True
             restarts_to_phase1 += 1
@@ -106,7 +110,7 @@ def simulate_prop(
             target = phase_start_capital * (1 + target_step1)
             if ca >= target and wins_in_phase >= min_win_trades:
                 note = f"✅ Fase 1 superada ({wins_in_phase} wins) → Fase 2"
-                rows.append([fechas.iloc[i], ciclo, phase, cb, p, ca, w, start_capital, wins_in_phase, note])
+                rows.append([fechas.iloc[i], ev_lbl, ciclo, phase, cb, p, ca, w, start_capital, wins_in_phase, note])
                 phase               = 2
                 phase_start_capital = start_capital
                 current_capital     = start_capital
@@ -119,7 +123,7 @@ def simulate_prop(
             target = phase_start_capital * (1 + target_step2)
             if ca >= target and wins_in_phase >= min_win_trades:
                 note = f"✅ Fase 2 superada ({wins_in_phase} wins) → Live"
-                rows.append([fechas.iloc[i], ciclo, phase, cb, p, ca, w, start_capital, wins_in_phase, note])
+                rows.append([fechas.iloc[i], ev_lbl, ciclo, phase, cb, p, ca, w, start_capital, wins_in_phase, note])
                 phase               = 3
                 phase_start_capital = start_capital
                 current_capital     = start_capital
@@ -138,10 +142,10 @@ def simulate_prop(
                 note = f"🔒 Sin retiro ({benef_pct:.2f}% ≤ {umbral:.0f}%)"
             current_capital = ca - w
 
-        rows.append([fechas.iloc[i], ciclo, phase, cb, p, ca, w, current_capital, wins_in_phase, note])
+        rows.append([fechas.iloc[i], ev_lbl, ciclo, phase, cb, p, ca, w, current_capital, wins_in_phase, note])
 
     sim = pd.DataFrame(rows, columns=[
-        fecha_col, "Ciclo", "Fase", "Capital Antes", benef_col,
+        fecha_col, "Evento", "Ciclo", "Fase", "Capital Antes", benef_col,
         "Capital Después", "Retiro", "Capital Sig. Op.", "Wins en Fase", "Estado",
     ])
 
