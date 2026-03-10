@@ -344,10 +344,15 @@ if modulo == "📊 Backtest":
 
     st.divider()
 
+    # ── Trade History base (Fecha Cierre order + Capital recalculado) ──────────
+    from utils.strategy import INITIAL_CAPITAL as _INIT_CAP
+    df_th = df_trades.sort_values("Fecha Cierre").copy()
+    df_th["Capital"] = _INIT_CAP + df_th["Beneficio"].cumsum()
+
     # ── Equity Curve ──────────────────────────────────────────────────────────
     st.subheader("📈 Equity Curve")
     st.plotly_chart(
-        plot_equity_curve(df_trades, title=titulo),
+        plot_equity_curve(df_th, title=titulo),
         use_container_width=True,
         config={"displayModeBar": True},
     )
@@ -465,11 +470,6 @@ if modulo == "📊 Backtest":
 
     # ── Trade History ─────────────────────────────────────────────────────────
     st.subheader("📋 Trade History")
-
-    # Ordenar por Fecha Cierre y recalcular Capital acumulado en ese orden
-    from utils.strategy import INITIAL_CAPITAL as _INIT_CAP
-    df_th = df_trades.sort_values("Fecha Cierre").copy()
-    df_th["Capital"] = _INIT_CAP + df_th["Beneficio"].cumsum()
 
     price_cols = ["Entrada", "S/L", "T/P", "Cierre"]
     money_cols = ["Beneficio", "Capital", "Comisión"]

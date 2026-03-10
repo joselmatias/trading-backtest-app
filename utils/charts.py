@@ -13,25 +13,33 @@ COLOR_GREEN = "#00cc66"
 
 
 def plot_equity_curve(df_trades: pd.DataFrame, title: str = "Equity Curve") -> go.Figure:
-    """Equity curve (top) + drawdown % mini chart (bottom), shared X axis."""
-    events = []  # (datetime, capital_delta)
-    for _, row in df_trades.iterrows():
-        is_multiday = row["Fecha Cierre"].date() > row["Fecha Apertura"].date()
-        if is_multiday:
-            events.append((row["Fecha Apertura"], -COMMISSION))
-            events.append((row["Fecha Cierre"], row["Beneficio"] + COMMISSION))
-        else:
-            events.append((row["Fecha Cierre"], row["Beneficio"]))
+    """Equity curve (top) + drawdown % mini chart (bottom), shared X axis.
 
-    events.sort(key=lambda x: x[0])
-
-    dates = [df_trades["Fecha Apertura"].min()]
-    equity = [INITIAL_CAPITAL]
-    capital = INITIAL_CAPITAL
-    for dt, delta in events:
-        capital = round(capital + delta, 2)
-        dates.append(dt)
-        equity.append(capital)
+    Si df_trades tiene columnas 'Capital' y 'Fecha Cierre' usa esos valores directamente.
+    """
+    if "Capital" in df_trades.columns and "Fecha Cierre" in df_trades.columns:
+        df_sorted = df_trades.sort_values("Fecha Cierre")
+        dates  = [df_sorted["Fecha Cierre"].iloc[0]]
+        equity = [INITIAL_CAPITAL]
+        dates  += df_sorted["Fecha Cierre"].tolist()
+        equity += df_sorted["Capital"].tolist()
+    else:
+        events = []
+        for _, row in df_trades.iterrows():
+            is_multiday = row["Fecha Cierre"].date() > row["Fecha Apertura"].date()
+            if is_multiday:
+                events.append((row["Fecha Apertura"], -COMMISSION))
+                events.append((row["Fecha Cierre"], row["Beneficio"] + COMMISSION))
+            else:
+                events.append((row["Fecha Cierre"], row["Beneficio"]))
+        events.sort(key=lambda x: x[0])
+        dates = [df_trades["Fecha Apertura"].min()]
+        equity = [INITIAL_CAPITAL]
+        capital = INITIAL_CAPITAL
+        for dt, delta in events:
+            capital = round(capital + delta, 2)
+            dates.append(dt)
+            equity.append(capital)
 
     # Drawdown %
     eq_series = pd.Series(equity, index=dates)
