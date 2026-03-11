@@ -503,13 +503,13 @@ if modulo == "📊 Backtest":
     col_dd1, col_dd2 = st.columns(2)
     with col_dd1:
         st.plotly_chart(
-            plot_drawdown_abs(df_trades),
+            plot_drawdown_abs(df_th),
             use_container_width=True,
             config={"displayModeBar": True},
         )
     with col_dd2:
         st.plotly_chart(
-            plot_drawdown_pct(df_trades),
+            plot_drawdown_pct(df_th),
             use_container_width=True,
             config={"displayModeBar": True},
         )
@@ -542,8 +542,8 @@ if modulo == "📊 Backtest":
 
     # ── Frecuencia por Cuerpo (pips) ───────────────────────────────────────────
     st.subheader("📊 Frecuencia por Tamaño de Vela")
-    total_trades = len(df_trades)
-    df_freq_src = df_trades.copy()
+    total_trades = len(df_th)
+    df_freq_src = df_th.copy()
     df_freq_src["Cuerpo (pips)"] = df_freq_src["Cuerpo (pips)"].round().astype(int)
     freq = (
         df_freq_src.groupby("Cuerpo (pips)", sort=True)
@@ -587,37 +587,37 @@ if modulo == "📊 Backtest":
     col_a1, col_a2 = st.columns(2)
     with col_a1:
         st.plotly_chart(
-            plot_pnl_by_weekday(pnl_by_weekday(df_trades)),
+            plot_pnl_by_weekday(pnl_by_weekday(df_th)),
             use_container_width=True, config={"displayModeBar": True},
         )
     with col_a2:
         st.plotly_chart(
-            plot_pnl_by_hour(pnl_by_hour(df_trades)),
+            plot_pnl_by_hour(pnl_by_hour(df_th)),
             use_container_width=True, config={"displayModeBar": True},
         )
 
     st.plotly_chart(
-        plot_long_vs_short(long_vs_short(df_trades)),
+        plot_long_vs_short(long_vs_short(df_th)),
         use_container_width=True, config={"displayModeBar": True},
     )
 
     st.plotly_chart(
-        plot_wins_losses_by_day(wins_losses_by_day(df_trades)),
+        plot_wins_losses_by_day(wins_losses_by_day(df_th)),
         use_container_width=True, config={"displayModeBar": True},
     )
 
     st.plotly_chart(
-        plot_trade_duration(trade_duration_minutes(df_trades)),
+        plot_trade_duration(trade_duration_minutes(df_th)),
         use_container_width=True, config={"displayModeBar": True},
     )
 
     st.plotly_chart(
-        plot_streaks(streak_analysis(df_trades)),
+        plot_streaks(streak_analysis(df_th)),
         use_container_width=True, config={"displayModeBar": True},
     )
 
     st.markdown("**Frecuencia de Rachas por Longitud**")
-    df_wins, df_losses = pnl_frequency(df_trades)
+    df_wins, df_losses = pnl_frequency(df_th)
     _fmt_freq = {"Frec. Relativa (%)": "{:.2f}%", "Frec. Acumulada (%)": "{:.2f}%"}
 
     col_w, col_l = st.columns(2)
@@ -637,8 +637,8 @@ if modulo == "📊 Backtest":
 
     # ── Performance Report ────────────────────────────────────────────────────
     st.subheader("📋 Performance Report")
-    adv = calculate_advanced_metrics(df_trades)
-    mp  = monthly_performance(df_trades)
+    adv = calculate_advanced_metrics(df_th)
+    mp  = monthly_performance(df_th)
 
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Métricas", "📈 Stats", "🔢 Trades", "📅 Monthly P/L"])
 
