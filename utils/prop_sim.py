@@ -224,7 +224,7 @@ def simulate_prop_strict(
         if pd.notna(skip_until) and f_apertura <= skip_until:
             rows.append([
                 f_cierre, f_apertura, ciclo, phase,
-                None, None, None, None, None, wins_in_phase,
+                None, float(benef[i]), None, None, None, wins_in_phase,
                 f"⏭️ Saltado (apertura {f_apertura} ≤ cierre reseteo {skip_until})"
             ])
             continue
