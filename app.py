@@ -496,6 +496,109 @@ if modulo == "📊 Backtest":
         hide_index=True,
     )
 
+    # ── Analytics Fondeo Sin Solapamiento ─────────────────────────────────────
+    st.subheader("📈 Analytics — Simulación Sin Solapamiento")
+
+    _s2 = sim2.copy()
+    _s2["Estado"] = _s2["Estado"].astype(str)
+    _s2["Fecha Cierre"] = pd.to_datetime(_s2["Fecha Cierre"], errors="coerce")
+    _s2["Retiro"] = pd.to_numeric(_s2["Retiro"], errors="coerce").fillna(0.0)
+
+    # 1) Resumen de fases
+    _passes_f1   = _s2["Estado"].str.contains("Fase 1 superada", case=False, na=False).sum()
+    _passes_f2   = _s2["Estado"].str.contains("Fase 2 superada", case=False, na=False).sum()
+    _live_cycles = _s2.loc[_s2["Estado"].str.contains("Fase 2 superada", case=False, na=False), "Ciclo"].nunique()
+    _ciclos_obs  = int(_s2["Ciclo"].max()) if len(_s2) else 0
+
+    st.markdown("**1️⃣ Resumen de Fases**")
+    df_fases = pd.DataFrame({
+        "Métrica": [
+            "Cuentas pasadas en Fase 1",
+            "Cuentas pasadas en Fase 2",
+            "Ciclos únicos que llegaron a Fase 3 (Live)",
+            "Ciclos totales (observados)",
+        ],
+        "Valor": [_passes_f1, _passes_f2, _live_cycles, _ciclos_obs],
+    })
+    st.dataframe(df_fases, use_container_width=True, hide_index=True)
+
+    # 2) Meses con retiros
+    st.markdown("**2️⃣ Meses con Retiros**")
+    _retiros = _s2.loc[(_s2["Retiro"] > 0) & (_s2["Fecha Cierre"].notna())].copy()
+    if not _retiros.empty:
+        _retiros["Mes"] = _retiros["Fecha Cierre"].dt.to_period("M").astype(str)
+        df_meses = (
+            _retiros.groupby("Mes", as_index=False)
+            .agg(
+                Retiros=("Retiro", "size"),
+                Total_Retirado=("Retiro", "sum"),
+                Montos=("Retiro", lambda s: ", ".join(f"${v:,.2f}" for v in s)),
+            )
+            .sort_values("Mes")
+            .reset_index(drop=True)
+        )
+        df_meses["Total_Retirado"] = df_meses["Total_Retirado"].round(2)
+        st.dataframe(
+            df_meses.style.format({"Total_Retirado": "${:,.2f}"}),
+            use_container_width=True, hide_index=True,
+        )
+    else:
+        st.info("Sin retiros registrados.")
+
+    # 3) Duración por fase (días)
+    st.markdown("**3️⃣ Duración por Fase (días)**")
+    if _s2["Fecha Cierre"].notna().any():
+        _grp = (
+            _s2.dropna(subset=["Fecha Cierre"])
+            .groupby(["Ciclo", "Fase"])["Fecha Cierre"]
+            .agg(start="min", end="max")
+            .reset_index()
+        )
+        _grp["Duracion"] = (_grp["end"] - _grp["start"]).dt.days + 1
+        df_dur = (
+            _grp.groupby("Fase")["Duracion"]
+            .agg(Min_dias="min", Max_dias="max", Promedio_dias="mean", Muestras="count")
+            .reset_index()
+        )
+        df_dur["Promedio_dias"] = df_dur["Promedio_dias"].round(1)
+        df_dur["Fase"] = df_dur["Fase"].map({1: "Fase 1", 2: "Fase 2", 3: "Live"})
+        st.dataframe(df_dur, use_container_width=True, hide_index=True)
+    else:
+        st.info("Sin datos de fecha.")
+
+    # 4) Duración cuando pasas vs cuando pierdes
+    st.markdown("**4️⃣ Duración cuando Pasas / Pierdes de Fase (días)**")
+    if _s2["Fecha Cierre"].notna().any():
+        _df4 = _s2.dropna(subset=["Fecha Cierre"]).sort_values(["Ciclo", "Fase", "Fecha Cierre"])
+        _first = (_df4.groupby(["Ciclo", "Fase"]).head(1)[["Ciclo", "Fase", "Fecha Cierre"]]
+                  .rename(columns={"Fecha Cierre": "start"}))
+        _last  = (_df4.groupby(["Ciclo", "Fase"]).tail(1)[["Ciclo", "Fase", "Fecha Cierre", "Estado"]]
+                  .rename(columns={"Fecha Cierre": "end", "Estado": "Estado_fin"}))
+        _ep = pd.merge(_first, _last, on=["Ciclo", "Fase"], how="inner")
+        _ep["Duracion"] = (_ep["end"] - _ep["start"]).dt.days + 1
+        _ep["Estado_fin"] = _ep["Estado_fin"].astype(str)
+        _ep["paso"]   = _ep["Estado_fin"].str.contains("Fase 1 superada|Fase 2 superada", case=False, na=False)
+        _ep["breach"] = _ep["Estado_fin"].str.contains("Breach", case=False, na=False)
+
+        def _dur_summary(sub):
+            if sub.empty:
+                return pd.DataFrame(columns=["Fase", "Min días", "Max días", "Promedio días", "Muestras"])
+            out = (sub.groupby("Fase")["Duracion"]
+                   .agg(Min_dias="min", Max_dias="max", Promedio_dias="mean", Muestras="count")
+                   .reset_index())
+            out["Promedio_dias"] = out["Promedio_dias"].round(1)
+            out["Fase"] = out["Fase"].map({1: "Fase 1", 2: "Fase 2", 3: "Live"})
+            return out.rename(columns={"Min_dias": "Min días", "Max_dias": "Max días",
+                                       "Promedio_dias": "Promedio días"})
+
+        _c1, _c2 = st.columns(2)
+        with _c1:
+            st.markdown("✅ **Cuando pasas de fase**")
+            st.dataframe(_dur_summary(_ep[_ep["paso"]]), use_container_width=True, hide_index=True)
+        with _c2:
+            st.markdown("🔴 **Cuando pierdes (Breach)**")
+            st.dataframe(_dur_summary(_ep[_ep["breach"]]), use_container_width=True, hide_index=True)
+
     st.divider()
 
     # ── Drawdown ──────────────────────────────────────────────────────────────
