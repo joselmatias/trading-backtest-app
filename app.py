@@ -41,9 +41,10 @@ st.divider()
 # ── Datasets & params ─────────────────────────────────────────────────────────
 FUENTES_DATOS = {
     "EURUSD": {
-        "Alpha":           "data/alpha/EURUSD_M15.csv",
-        "Seacrest Market": "data/seacrest_market/EURUSD_M15.csv",
-        "WeMasterTrade":   "data/wemastertrade/EURUSD__M15_202501020100_202603062345.csv",
+        "Alpha":             "data/alpha/EURUSD_M15.csv",
+        "Seacrest Market":   "data/seacrest_market/EURUSD_M15.csv",
+        "WeMasterTrade":     "data/wemastertrade/EURUSD__M15_202501020100_202603062345.csv",
+        "Metaquotes Demo":   "data/metaquotes-demo/EURUSD_M15_202501020000_202601302345 Metaquotes-demo.csv",
     },
     "USDCHF": {
         "WeMasterTrade":   "data/wemastertrade/USDCHF__M15_202501020100_202603062345.csv",
