@@ -86,7 +86,8 @@ def run_backtest(df: pd.DataFrame, params: dict) -> pd.DataFrame:
     Rules:
     - Signal on candle i → entry at OPEN of candle i+1
     - SL and TP in pips (from params)
-    - Stop trading for the day after any losing trade
+    - Stop new entries for the rest of the day when a trade closes with SL
+      (block starts at the exact SL close timestamp)
 
     Args:
         df:     OHLC DataFrame with 'bb_bbm' column and DatetimeIndex.
@@ -110,9 +111,8 @@ def run_backtest(df: pd.DataFrame, params: dict) -> pd.DataFrame:
     capital = INITIAL_CAPITAL
     results = []
 
-    current_day = None
-    puede_operar = True
-    registro_primera_operacion = False
+    # key: date, value: datetime from which that day is blocked
+    blocked_from: dict = {}
 
     for i in range(1, len(df) - 1):
         row = df.iloc[i]
@@ -124,13 +124,8 @@ def run_backtest(df: pd.DataFrame, params: dict) -> pd.DataFrame:
 
         entry_date = entry_time.date()
 
-        # Reset diario
-        if current_day != entry_date:
-            current_day = entry_date
-            puede_operar = True
-            registro_primera_operacion = False
-
-        if not puede_operar:
+        # Skip if this entry falls within a blocked window
+        if entry_date in blocked_from and entry_time >= blocked_from[entry_date]:
             continue
 
         # Filtro de vela
@@ -174,12 +169,11 @@ def run_backtest(df: pd.DataFrame, params: dict) -> pd.DataFrame:
             "Capital":        capital,
         })
 
-        # Control diario: para si hay pérdida
-        if not registro_primera_operacion:
-            registro_primera_operacion = True
-            if pnl < 0:
-                puede_operar = False
-        elif pnl < 0:
-            puede_operar = False
+        # Block rest of close day if trade hit SL (pnl < 0)
+        if pnl < 0:
+            close_dt   = close_info["time"]
+            close_date = close_dt.date()
+            if close_date not in blocked_from or close_dt < blocked_from[close_date]:
+                blocked_from[close_date] = close_dt
 
     return pd.DataFrame(results) if results else pd.DataFrame()
