@@ -88,6 +88,7 @@ def run_backtest(df: pd.DataFrame, params: dict) -> pd.DataFrame:
     - SL and TP in pips (from params)
     - Stop new entries for the rest of the day when a trade closes with SL
       (block starts at the exact SL close timestamp)
+    - Maximum 2 simultaneous open positions at any time
 
     Args:
         df:     OHLC DataFrame with 'bb_bbm' column and DatetimeIndex.
@@ -126,6 +127,14 @@ def run_backtest(df: pd.DataFrame, params: dict) -> pd.DataFrame:
 
         # Skip if this entry falls within a blocked window
         if entry_date in blocked_from and entry_time >= blocked_from[entry_date]:
+            continue
+
+        # Límite de posiciones simultáneas: máximo 2
+        open_positions = sum(
+            1 for t in results
+            if t["Fecha Apertura"] <= entry_time < t["Fecha Cierre"]
+        )
+        if open_positions >= 2:
             continue
 
         # Filtro de vela
