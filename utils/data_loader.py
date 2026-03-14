@@ -54,13 +54,10 @@ def calculate_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
     Drops rows where bb_bbm is NaN (first BB_WINDOW - 1 rows).
     """
-    from ta.momentum import RSIIndicator
     df = df.copy()
     bb = BollingerBands(close=df["CLOSE"], window=BB_WINDOW, window_dev=BB_DEV)
     df["bb_bbm"] = bb.bollinger_mavg()
-    rsi2 = RSIIndicator(close=df["CLOSE"], window=2)
-    df["rsi_2"] = rsi2.rsi()
-    return df.dropna(subset=["bb_bbm", "rsi_2"])
+    return df.dropna(subset=["bb_bbm"])
 
 
 def calcular_pip_value_usdchf(df_ohlcv: pd.DataFrame, lote: float = 0.25) -> float:
