@@ -23,11 +23,12 @@ def _candle_ok(
 
 def _detect_signal(row: pd.Series) -> str | None:
     """Return 'BUY', 'SELL', or None based on candle vs Bollinger mid-band."""
-    bbm = row["bb_bbm"]
+    bbm  = row["bb_bbm"]
+    rsi2 = row["rsi_2"]
     o, c = row["OPEN"], row["CLOSE"]
-    if o > bbm and c > bbm and c > o:
+    if o > bbm and c > bbm and c > o and rsi2 <= 5:
         return "BUY"
-    if o < bbm and c < bbm and c < o:
+    if o < bbm and c < bbm and c < o and rsi2 >= 95:
         return "SELL"
     return None
 
