@@ -8,7 +8,7 @@ import os
 import pandas as pd
 import streamlit as st
 
-from utils.data_loader import calculate_indicators, load_csv
+from utils.data_loader import calculate_indicators, load_csv, resample_ohlc
 from utils.charts import (
     plot_drawdown_abs, plot_drawdown_pct, plot_equity_curve,
     plot_pnl_by_weekday, plot_pnl_by_hour, plot_long_vs_short,
@@ -110,6 +110,25 @@ if modulo == "📊 Backtest":
 
         archivo = FUENTES_DATOS[par][broker]
 
+        st.markdown("**⏱️ Temporalidad**")
+        TF_OPTIONS  = ["15m", "30m", "1h", "4h", "8h", "1d"]
+        TF_RESAMPLE = {
+            "15m": "15min",
+            "30m": "30min",
+            "1h":  "1h",
+            "4h":  "4h",
+            "8h":  "8h",
+            "1d":  "1D",
+        }
+        timeframe = st.radio(
+            "",
+            options=TF_OPTIONS,
+            index=0,
+            horizontal=True,
+            key="tf_selector",
+            label_visibility="collapsed",
+        )
+
     # ── File validation ───────────────────────────────────────────────────────
     if not os.path.exists(archivo):
         st.sidebar.error("⚠️ Archivo no encontrado")
@@ -131,7 +150,8 @@ if modulo == "📊 Backtest":
         )
         st.stop()
 
-    df = calculate_indicators(df_raw)
+    df_resampled = resample_ohlc(df_raw, TF_RESAMPLE[timeframe])
+    df = calculate_indicators(df_resampled)
 
     if df.empty:
         st.warning("El DataFrame quedó vacío tras calcular los indicadores.")
@@ -189,7 +209,7 @@ if modulo == "📊 Backtest":
         )
 
     # ── Run backtest ──────────────────────────────────────────────────────────
-    titulo = f"{par} M15 — Bollinger Bands | {broker}"
+    titulo = f"{par} {timeframe.upper()} — Bollinger Bands | {broker}"
 
     with st.spinner("Ejecutando backtest…"):
         df_trades = run_backtest(df, params)

@@ -60,6 +60,27 @@ def calculate_indicators(df: pd.DataFrame) -> pd.DataFrame:
     return df.dropna(subset=["bb_bbm"])
 
 
+@st.cache_data
+def resample_ohlc(df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
+    """Resample OHLC data to a higher timeframe.
+
+    Args:
+        df:         OHLC DataFrame with DatetimeIndex.
+        timeframe:  Pandas offset string ('15min', '30min', '1h', '4h', '8h', '1D').
+
+    Returns:
+        Resampled OHLC DataFrame with NaN rows dropped.
+    """
+    if timeframe == "15min":
+        return df.copy()
+    return df.resample(timeframe).agg({
+        "OPEN":  "first",
+        "HIGH":  "max",
+        "LOW":   "min",
+        "CLOSE": "last",
+    }).dropna()
+
+
 def calcular_pip_value_usdchf(df_ohlcv: pd.DataFrame, lote: float = 0.25) -> float:
     """Calcula el pip value efectivo en USD para USDCHF al tamaño de lote dado.
 
