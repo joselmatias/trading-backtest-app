@@ -363,6 +363,52 @@ if modulo == "📊 Backtest":
         hide_index=True,
     )
 
+    # ── SL Simulation Table ────────────────────────────────────────────────────
+    st.subheader("🛡️ Simulación Stop Loss")
+    sl_rows = []
+    for sl_val in [5, 10, 15, 20]:
+        p_sl = {**params, "sl_pips": sl_val}
+        df_sl = run_backtest(df, p_sl)
+        rr_ratio = round(params["tp_pips"] / sl_val, 1) if sl_val > 0 else "—"
+        if df_sl.empty:
+            sl_rows.append({
+                "SL (pips)": sl_val,
+                "TP (pips)": params["tp_pips"],
+                "R:R": f"1:{rr_ratio}",
+                "✅ Ganadoras": 0, "❌ Perdedoras": 0,
+                "🏆 Win Rate": "0.0%", "💰 Capital Final": "$5,000.00",
+                "📉 DD $": "$0.00", "📉 DD %": "0.00%",
+            })
+        else:
+            ms = calculate_metrics(df_sl)
+            sl_rows.append({
+                "SL (pips)": sl_val,
+                "TP (pips)": params["tp_pips"],
+                "R:R": f"1:{rr_ratio}",
+                "✅ Ganadoras": ms["win_trades"],
+                "❌ Perdedoras": ms["loss_trades"],
+                "🏆 Win Rate": f"{ms['win_rate']:.1f}%",
+                "💰 Capital Final": f"${ms['capital_final']:,.2f}",
+                "📉 DD $": f"-${ms['max_drawdown_abs']:,.2f}",
+                "📉 DD %": f"-{ms['max_drawdown_pct']:.2f}%",
+            })
+
+    df_sl_table = pd.DataFrame(sl_rows)
+    cur_sl = params["sl_pips"]
+
+    def _highlight_sl(row):
+        return (
+            ["background-color: #1a3a1a"] * len(row)
+            if row["SL (pips)"] == cur_sl
+            else [""] * len(row)
+        )
+
+    st.dataframe(
+        df_sl_table.style.apply(_highlight_sl, axis=1),
+        use_container_width=True,
+        hide_index=True,
+    )
+
     st.divider()
 
     # ── Trade History base (Fecha Cierre order + Capital recalculado) ──────────
